@@ -127,9 +127,9 @@ impl SerialPortInfo {
 
         if let Some(parity) = arg_matches.value_of("parity") {
             match parity {
-                "N" => setting.parity = serial::Parity::ParityNone,
-                "O" => setting.parity = serial::Parity::ParityOdd,
-                "E" => setting.parity = serial::Parity::ParityEven,
+                "N" | "n" => setting.parity = serial::Parity::ParityNone,
+                "O" | "o" => setting.parity = serial::Parity::ParityOdd,
+                "E" | "e" => setting.parity = serial::Parity::ParityEven,
                 _ => {
                     println!("Parity setting error.");
                     process::exit(0);
@@ -163,9 +163,9 @@ impl SerialPortInfo {
 
         if let Some(flowcontrol) = arg_matches.value_of("flowcontrol") {
             match flowcontrol {
-                "N" => setting.flow_control = serial::FlowControl::FlowNone,
-                "S" => setting.flow_control = serial::FlowControl::FlowSoftware,
-                "H" => setting.flow_control = serial::FlowControl::FlowHardware,
+                "N" | "n" => setting.flow_control = serial::FlowControl::FlowNone,
+                "S" | "s" => setting.flow_control = serial::FlowControl::FlowSoftware,
+                "H" | "h" => setting.flow_control = serial::FlowControl::FlowHardware,
                 _ => {
                     println!("Flow control setting error.");
                     process::exit(0);
