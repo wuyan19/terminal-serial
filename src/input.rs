@@ -135,7 +135,9 @@ impl InputMessage {
                     // } else {
                     //     println!("{}", x as u8);
                     // }
-                    return InputMessage::Data(vec![x]);
+                    if x < 128 {
+                        return InputMessage::Data(vec![x]);
+                    }
                 }
             }
         }
