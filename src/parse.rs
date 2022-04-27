@@ -94,7 +94,7 @@ impl SerialPortInfo {
                         println!("There is no serial port to open.");
                         process::exit(0);
                     }
-                    print!("Select <0~{}>: ", port_list.len()-1);
+                    print!("Select <0~{}>: ", port_list.len() - 1);
                     if let Ok(()) = io::stdout().flush() {};
                     line.clear();
                     match io::stdin().read_line(&mut line) {

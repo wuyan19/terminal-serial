@@ -20,12 +20,14 @@ impl TerminalSerial {
         let mut serial_port = serial::open(port.as_str()).unwrap();
 
         serial_port.configure(&setting).unwrap();
-        serial_port.set_timeout(Duration::from_millis(200)).unwrap();
+        serial_port.set_timeout(Duration::from_millis(1)).unwrap();
 
         println!("{} is connected. Press 'Ctrl + ]' to quit.", port);
 
         let quit = Arc::new(Mutex::new(false));
+        let sp = Arc::new(Mutex::new(serial_port));
 
+        let serial_port1 = Arc::clone(&sp);
         let quit1 = Arc::clone(&quit);
         handles.push(thread::spawn(move || loop {
             match InputMessage::get_message() {
@@ -35,20 +37,26 @@ impl TerminalSerial {
                     break;
                 }
                 InputMessage::Data(msg) => {
-                    println!("converted: {:?}", msg);
-                    //serial_port.write(&msg);
+                    //println!("converted: {:?}", msg);
+                    let mut serial_port = serial_port1.lock().unwrap();
+                    if let Ok(_n) = serial_port.write(&msg) {
+                        //println!("write {} bytes.", n);
+                    };
                 }
                 _ => (), // Ignored
             }
         }));
 
+        let serial_port2 = Arc::clone(&sp);
         let quit2 = Arc::clone(&quit);
         handles.push(thread::spawn(move || {
-            let mut buf: Vec<u8> = vec![0; 1024];
+            let mut buf: Vec<u8> = vec![0; 2048];
             loop {
+                thread::sleep(Duration::from_millis(2));
+                let mut serial_port = serial_port2.lock().unwrap();
                 if let Ok(n) = serial_port.read(&mut buf[..]) {
                     if let Ok(_) = io::stdout().write(&buf[0..n]) { /* Ignored */ };
-                    //if let Ok(_) = io::stdout().flush() { /* Ignored */ };
+                    if let Ok(_) = io::stdout().flush() { /* Ignored */ };
                 };
                 //thread::sleep(Duration::from_millis(1000));
                 let quit = quit2.lock().unwrap();
