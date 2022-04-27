@@ -1,79 +1,74 @@
 extern crate clap;
 extern crate serial;
 
-mod serial_port {
-    //use std::io;
-    use winreg::enums::*;
-    use winreg::RegKey;
+use clap::{load_yaml, App};
+use std::io::{self, Write};
+use std::process;
+use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
 
-    pub struct SerialPort {
-        port_list: Vec<String>,
-        valid: bool,
+struct SerialPorts {
+    port_list: Vec<String>,
+    valid: bool,
+}
+
+impl SerialPorts {
+    fn new() -> SerialPorts {
+        SerialPorts {
+            port_list: vec![],
+            valid: false,
+        }
     }
 
-    impl SerialPort {
-        pub fn new() -> SerialPort {
-            SerialPort {
-                port_list: vec![],
-                valid: false,
-            }
-        }
-
-        pub fn get_list(&mut self, show: bool) -> &Vec<String> {
-            if self.valid {
-                if show {
-                    self.show_list();
-                }
-                return &self.port_list;
-            }
-
-            let serial_comms =
-                RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey("HARDWARE\\DEVICEMAP\\SERIALCOMM");
-            if let Ok(serial) = serial_comms {
-                for (_name, value) in serial.enum_values().map(|x| x.unwrap()) {
-                    if let Ok(com) = String::from_utf8(value.bytes) {
-                        let mut tmp = String::new();
-                        for val in com.as_bytes().iter() {
-                            if *val != 0 {
-                                tmp.push(*val as char);
-                            }
-                        }
-                        self.port_list.push(tmp);
-                    }
-                }
-            }
-            self.valid = true;
-
+    fn get_list(&mut self, show: bool) -> &Vec<String> {
+        if self.valid {
             if show {
                 self.show_list();
             }
-
-            &self.port_list
+            return &self.port_list;
         }
 
-        fn show_list(&self) {
-            println!("---------------------------");
-            println!("    Serial Port List       ");
-            println!("---------------------------");
-            for (idx, value) in self.port_list.iter().enumerate() {
-                println!("{} - {}", idx, value);
+        let serial_comms =
+            RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey("HARDWARE\\DEVICEMAP\\SERIALCOMM");
+        if let Ok(serial) = serial_comms {
+            for (_name, value) in serial.enum_values().map(|x| x.unwrap()) {
+                if let Ok(com) = String::from_utf8(value.bytes) {
+                    let mut tmp = String::new();
+                    for val in com.as_bytes().iter() {
+                        if *val != 0 {
+                            tmp.push(*val as char);
+                        }
+                    }
+                    self.port_list.push(tmp);
+                }
             }
-            println!("---------------------------");
         }
+        self.valid = true;
+
+        if show {
+            self.show_list();
+        }
+
+        &self.port_list
+    }
+
+    fn show_list(&self) {
+        println!("---------------------------");
+        println!("    Serial Port List       ");
+        println!("---------------------------");
+        for (idx, value) in self.port_list.iter().enumerate() {
+            println!("{} - {}", idx, value);
+        }
+        println!("---------------------------");
     }
 }
 
-pub mod cli_parse {
-    use super::serial_port::SerialPort;
-    use clap::{load_yaml, App};
-    use std::io;
-    use std::io::Write;
-    use std::process;
+pub struct SerialPortInfo;
 
-    pub fn parse() -> (String, serial::PortSettings) {
+impl SerialPortInfo {
+    pub fn get_info() -> (String, serial::PortSettings) {
         let cmd = load_yaml!("cmd.yml");
         let arg_matches = App::from_yaml(cmd).get_matches();
-        let mut serial_port = SerialPort::new();
+        let mut serial_port = SerialPorts::new();
         let mut setting: serial::PortSettings = serial::PortSettings {
             baud_rate: serial::Baud115200,
             char_size: serial::Bits8,
@@ -95,7 +90,11 @@ pub mod cli_parse {
                 let port_list = serial_port.get_list(true);
                 let mut line = String::new();
                 loop {
-                    print!("Select <0~1>: ");
+                    if port_list.len() == 0 {
+                        println!("There is no serial port to open.");
+                        process::exit(0);
+                    }
+                    print!("Select <0~{}>: ", port_list.len()-1);
                     if let Ok(()) = io::stdout().flush() {};
                     line.clear();
                     match io::stdin().read_line(&mut line) {

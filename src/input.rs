@@ -5,7 +5,7 @@ extern "C" {
     fn _getch() -> c_int;
 }
 
-pub fn getch() -> Result<u8, std::io::Error> {
+fn getch() -> Result<u8, std::io::Error> {
     loop {
         unsafe {
             let k = _getch();
