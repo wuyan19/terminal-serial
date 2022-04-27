@@ -1,0 +1,46 @@
+name: terminal-serial
+version: "0.1.0"
+# author: Eddie Wu.
+# about: Serial port tool on the command line.
+args:
+    - port:
+        short: p
+        long: port
+        value_name: TEXT
+        help: serial port name
+        takes_value: true
+    - baudrate:
+        short: b
+        long: baudrate
+        value_name: INTEGER
+        help: set baud reate, 115200 as default
+        takes_value: true
+    - parity:
+        short: a
+        long: parity
+        value_name: "N|O|E"
+        help: set parity, 'N' as default
+        takes_value: true
+    - datasize:
+        short: d
+        long: datasize
+        value_name: "5|6|7|8"
+        help: set datasize, 8 as default
+        takes_value: true
+    - stopbits:
+        short: s
+        long: stopbits
+        value_name: "[1|2]"
+        help: set stop bits, 1 as default
+        takes_value: true
+    - flowcontrol:
+        short: f
+        long: flowcontrol
+        value_name: "N|S|H"
+        help: set flow control, 'N' as default
+        takes_value: true
+    - list:
+        short: l
+        long: list
+        help: list serial ports
+        conflicts_with: ["port", "baudrate", "parity", "datasize", "stopbits"]

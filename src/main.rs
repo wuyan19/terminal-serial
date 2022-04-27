@@ -1,3 +1,8 @@
+mod task;
+
+use task::TerminalSerial;
+
 fn main() {
-    println!("Hello, world!");
+    let ts = TerminalSerial::new();
+    ts.run();
 }
