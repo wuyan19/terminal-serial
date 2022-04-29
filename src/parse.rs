@@ -4,6 +4,7 @@ extern crate serial;
 use clap::{load_yaml, App};
 use std::io::{self, Write};
 use std::process;
+#[cfg(windows)]
 use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
 
 struct SerialPorts {
@@ -27,21 +28,37 @@ impl SerialPorts {
             return &self.port_list;
         }
 
-        let serial_comms =
-            RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey("HARDWARE\\DEVICEMAP\\SERIALCOMM");
-        if let Ok(serial) = serial_comms {
-            for (_name, value) in serial.enum_values().map(|x| x.unwrap()) {
-                if let Ok(com) = String::from_utf8(value.bytes) {
-                    let mut tmp = String::new();
-                    for val in com.as_bytes().iter() {
-                        if *val != 0 {
-                            tmp.push(*val as char);
+        #[cfg(windows)]
+        {
+            let serial_comms =
+                RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey("HARDWARE\\DEVICEMAP\\SERIALCOMM");
+            if let Ok(serial) = serial_comms {
+                for (_name, value) in serial.enum_values().map(|x| x.unwrap()) {
+                    if let Ok(com) = String::from_utf8(value.bytes) {
+                        let mut tmp = String::new();
+                        for val in com.as_bytes().iter() {
+                            if *val != 0 {
+                                tmp.push(*val as char);
+                            }
                         }
+                        self.port_list.push(tmp);
                     }
-                    self.port_list.push(tmp);
                 }
             }
         }
+
+        #[cfg(not(windows))]
+        {
+            let items = std::fs::read_dir("/dev/").unwrap();
+
+            for item in items {
+                let file = item.unwrap().path().display().to_string();
+                if file.contains("tty.usb") {
+                    self.port_list.push(file);
+                }
+            }
+        }
+
         self.valid = true;
 
         if show {
@@ -93,25 +110,26 @@ impl SerialPortInfo {
                     if port_list.len() == 0 {
                         println!("There is no serial port to open.");
                         process::exit(0);
-                    }
-                    print!("Select <0~{}>: ", port_list.len() - 1);
-                    if let Ok(()) = io::stdout().flush() {};
-                    line.clear();
-                    match io::stdin().read_line(&mut line) {
-                        Ok(_n) => {
-                            if let Ok(idx) = line.trim().parse::<usize>() {
-                                if let Some(com) = port_list.get(idx) {
-                                    port.push_str(com);
-                                    break;
+                    } else {
+                        print!("Select <0~{}>: ", port_list.len() - 1);
+                        if let Ok(()) = io::stdout().flush() {};
+                        line.clear();
+                        match io::stdin().read_line(&mut line) {
+                            Ok(_n) => {
+                                if let Ok(idx) = line.trim().parse::<usize>() {
+                                    if let Some(com) = port_list.get(idx) {
+                                        port.push_str(com);
+                                        break;
+                                    }
                                 }
                             }
+                            Err(error) => {
+                                println!("Read line from stdin error({})", error);
+                                process::exit(0);
+                            }
                         }
-                        Err(error) => {
-                            println!("Read line from stdin error({})", error);
-                            process::exit(0);
-                        }
+                        println!("The input is invalid.");
                     }
-                    println!("The input is invalid.");
                 }
             }
         }

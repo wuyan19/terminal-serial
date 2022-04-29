@@ -40,7 +40,7 @@ impl TerminalSerial {
                     //println!("converted: {:?}", msg);
                     let mut serial_port = serial_port1.lock().unwrap();
                     if let Ok(_n) = serial_port.write(&msg) {
-                        //println!("write {} bytes.", n);
+                        //println!("write {} bytes.", _n);
                     };
                 }
                 _ => (), // Ignored
@@ -58,7 +58,6 @@ impl TerminalSerial {
                     if let Ok(_) = io::stdout().write(&buf[0..n]) { /* Ignored */ };
                     if let Ok(_) = io::stdout().flush() { /* Ignored */ };
                 };
-                //thread::sleep(Duration::from_millis(1000));
                 let quit = quit2.lock().unwrap();
                 if *quit {
                     break;
