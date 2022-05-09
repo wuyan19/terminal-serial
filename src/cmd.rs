@@ -2,90 +2,22 @@ extern crate clap;
 extern crate serial;
 
 use clap::{load_yaml, App};
-use std::io::{self, Write};
+use std::io::{stdin, stdout, Write};
 use std::process;
-#[cfg(windows)]
-use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
 
-struct SerialPorts {
+pub struct SerialPortInfo {
     port_list: Vec<String>,
     valid: bool,
 }
 
-impl SerialPorts {
-    fn new() -> SerialPorts {
-        SerialPorts {
-            port_list: vec![],
-            valid: false,
-        }
-    }
-
-    fn get_list(&mut self, show: bool) -> &Vec<String> {
-        if self.valid {
-            if show {
-                self.show_list();
-            }
-            return &self.port_list;
-        }
-
-        #[cfg(windows)]
-        {
-            let serial_comms =
-                RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey("HARDWARE\\DEVICEMAP\\SERIALCOMM");
-            if let Ok(serial) = serial_comms {
-                for (_name, value) in serial.enum_values().map(|x| x.unwrap()) {
-                    if let Ok(com) = String::from_utf8(value.bytes) {
-                        let mut tmp = String::new();
-                        for val in com.as_bytes().iter() {
-                            if *val != 0 {
-                                tmp.push(*val as char);
-                            }
-                        }
-                        self.port_list.push(tmp);
-                    }
-                }
-            }
-        }
-
-        #[cfg(not(windows))]
-        {
-            let items = std::fs::read_dir("/dev/").unwrap();
-
-            for item in items {
-                let file = item.unwrap().path().display().to_string();
-                if file.contains("tty.usb") {
-                    self.port_list.push(file);
-                }
-            }
-        }
-
-        self.valid = true;
-
-        if show {
-            self.show_list();
-        }
-
-        &self.port_list
-    }
-
-    fn show_list(&self) {
-        println!("---------------------------");
-        println!("    Serial Port List       ");
-        println!("---------------------------");
-        for (idx, value) in self.port_list.iter().enumerate() {
-            println!("{} - {}", idx, value);
-        }
-        println!("---------------------------");
-    }
-}
-
-pub struct SerialPortInfo;
-
 impl SerialPortInfo {
-    pub fn get_info() -> (String, serial::PortSettings) {
+    pub fn new() -> SerialPortInfo {
+        SerialPortInfo { port_list: vec![], valid: false }
+    }
+
+    pub fn get_info(&mut self) -> (String, serial::PortSettings) {
         let cmd = load_yaml!("cmd.yml");
         let arg_matches = App::from_yaml(cmd).get_matches();
-        let mut serial_port = SerialPorts::new();
         let mut setting: serial::PortSettings = serial::PortSettings {
             baud_rate: serial::Baud115200,
             char_size: serial::Bits8,
@@ -96,7 +28,7 @@ impl SerialPortInfo {
         let mut port = String::new();
 
         if arg_matches.is_present("list") {
-            serial_port.get_list(true);
+            self.show_port_list();
             process::exit(0);
         }
         match arg_matches.value_of("port") {
@@ -104,20 +36,20 @@ impl SerialPortInfo {
                 port.push_str(p);
             }
             None => {
-                let port_list = serial_port.get_list(true);
                 let mut line = String::new();
+                self.show_port_list();
                 loop {
-                    if port_list.len() == 0 {
+                    if self.port_list.len() == 0 {
                         println!("There is no serial port to open.");
                         process::exit(0);
                     } else {
-                        print!("Select <0~{}>: ", port_list.len() - 1);
-                        if let Ok(()) = io::stdout().flush() {};
+                        print!("Select <0~{}>: ", self.port_list.len() - 1);
+                        if let Ok(()) = stdout().flush() {};
                         line.clear();
-                        match io::stdin().read_line(&mut line) {
+                        match stdin().read_line(&mut line) {
                             Ok(_n) => {
                                 if let Ok(idx) = line.trim().parse::<usize>() {
-                                    if let Some(com) = port_list.get(idx) {
+                                    if let Some(com) = self.port_list.get(idx) {
                                         port.push_str(com);
                                         break;
                                     }
@@ -192,5 +124,20 @@ impl SerialPortInfo {
         }
 
         (port, setting)
+    }
+
+    fn show_port_list(&mut self) {
+        if !self.valid {
+            self.port_list = crate::serial_port::get_list();
+            self.valid = true;
+        }
+
+        println!("---------------------------");
+        println!("    Serial Port List       ");
+        println!("---------------------------");
+        for (idx, value) in self.port_list.iter().enumerate() {
+            println!("{} - {}", idx, value);
+        }
+        println!("---------------------------");
     }
 }

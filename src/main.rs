@@ -1,8 +1,5 @@
-mod task;
-
-use task::TerminalSerial;
+use terminal_serial::task::TerminalSerial;
 
 fn main() {
-    let ts = TerminalSerial::new();
-    ts.run();
+    TerminalSerial::run();
 }

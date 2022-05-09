@@ -1,31 +1,27 @@
 extern crate serial;
 
+use crate::InputMessage;
+use crate::cmd::SerialPortInfo;
 use serial::prelude::*;
-use std::io::{self, prelude::*};
+use std::io::{stdout, prelude::*};
 use std::sync::{Arc, Mutex};
 use std::{thread, time::Duration};
-use terminal_serial::input::InputMessage;
-use terminal_serial::parse::SerialPortInfo;
 
 pub struct TerminalSerial;
 
 impl TerminalSerial {
-    pub fn new() -> TerminalSerial {
-        TerminalSerial
-    }
-
-    pub fn run(&self) {
+    pub fn run() {
         let mut handles = Vec::with_capacity(3);
-        let (port, setting) = SerialPortInfo::get_info();
-        let mut serial_port = serial::open(port.as_str()).unwrap();
+        let (port, setting) = SerialPortInfo::new().get_info();
 
+        let mut serial_port = serial::open(port.as_str()).unwrap();
         serial_port.configure(&setting).unwrap();
         serial_port.set_timeout(Duration::from_millis(1)).unwrap();
 
-        println!("{} is connected. Press 'Ctrl + ]' to quit.", port);
-
         let quit = Arc::new(Mutex::new(false));
         let sp = Arc::new(Mutex::new(serial_port));
+
+        println!("{} is connected. Press 'Ctrl + ]' to quit.", port);
 
         let serial_port1 = Arc::clone(&sp);
         let quit1 = Arc::clone(&quit);
@@ -41,7 +37,7 @@ impl TerminalSerial {
                     let mut serial_port = serial_port1.lock().unwrap();
                     if let Ok(_n) = serial_port.write(&msg) {
                         //println!("write {} bytes.", _n);
-                    };
+                    }
                 }
                 _ => (), // Ignored
             }
@@ -55,8 +51,8 @@ impl TerminalSerial {
                 thread::sleep(Duration::from_millis(2));
                 let mut serial_port = serial_port2.lock().unwrap();
                 if let Ok(n) = serial_port.read(&mut buf[..]) {
-                    if let Ok(_) = io::stdout().write(&buf[0..n]) { /* Ignored */ };
-                    if let Ok(_) = io::stdout().flush() { /* Ignored */ };
+                    if let Ok(_) = stdout().write(&buf[0..n]) { /* Ignored */ };
+                    if let Ok(_) = stdout().flush() { /* Ignored */ };
                 };
                 let quit = quit2.lock().unwrap();
                 if *quit {

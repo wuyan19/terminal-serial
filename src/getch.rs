@@ -1,42 +1,43 @@
-#[cfg(not(windows))]
-extern crate termios;
-#[cfg(not(windows))]
-use std::io::Read;
-#[cfg(windows)]
-pub struct Getch{}
-
-#[cfg(not(windows))]
-pub enum Getch {
-    Termios(termios::Termios),
-    None
-}
-
 #[cfg(windows)]
 extern crate libc;
 #[cfg(windows)]
 use libc::c_int;
 #[cfg(windows)]
 extern "C" {
-    fn _getch()->c_int;
+    fn _getch() -> c_int;
 }
 
+#[cfg(windows)]
+pub struct Getch;
+
 #[cfg(not(windows))]
-use termios::{tcsetattr,ICANON,ECHO,ISIG};
+extern crate termios;
+#[cfg(not(windows))]
+use std::io::Read;
+#[cfg(not(windows))]
+use termios::{tcsetattr, ECHO, ICANON, ISIG};
+
+#[cfg(not(windows))]
+pub enum Getch {
+    Termios(termios::Termios),
+    None,
+}
 
 impl Getch {
     #[cfg(windows)]
     pub fn new() -> Getch {
-        Getch{}
+        Getch
     }
+
     #[cfg(not(windows))]
     pub fn new() -> Getch {
         if let Ok(mut termios) = termios::Termios::from_fd(0) {
             let c_lflag = termios.c_lflag;
-            termios.c_lflag &= !(ICANON|ECHO|ISIG);
+            termios.c_lflag &= !(ICANON | ECHO | ISIG);
 
             if let Ok(()) = tcsetattr(0, termios::TCSADRAIN, &termios) {
                 termios.c_lflag = c_lflag;
-                return Getch::Termios(termios)
+                return Getch::Termios(termios);
             }
         }
         Getch::None
@@ -46,7 +47,7 @@ impl Getch {
     pub fn getch(&self) -> Result<u8, std::io::Error> {
         loop {
             unsafe {
-                let k= _getch();
+                let k = _getch();
                 return Ok(k as u8);
                 // if k==0 {
                 //     // Ignore next input.
@@ -57,9 +58,10 @@ impl Getch {
             }
         }
     }
+
     #[cfg(not(windows))]
     pub fn getch(&self) -> Result<u8, std::io::Error> {
-        let mut r:[u8;1]=[0];
+        let mut r: [u8; 1] = [0];
         let mut stdin = std::io::stdin();
         loop {
             if let Ok(n) = stdin.read(&mut r[..]) {
@@ -105,7 +107,7 @@ impl Drop for Getch {
             tcsetattr(0, termios::TCSADRAIN, &termios).unwrap_or(())
         }
     }
+
     #[cfg(windows)]
-    fn drop(&mut self) {
-    }
+    fn drop(&mut self) {}
 }
