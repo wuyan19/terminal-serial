@@ -48,7 +48,7 @@ com3 is connected. Press 'Ctrl + ]' to quit.
 /dev/tty.usbserial is connected. Press 'Ctrl + ]' to quit.
 ```
 
-## Download
+## Release
 - **Windows**
     - [terminal-serial.zip](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.zip) - 359K
     - [terminal-serial.tar.gz](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.tar.gz) - 370K
