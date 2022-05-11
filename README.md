@@ -11,7 +11,7 @@ A terminal serial port tool developed in the **Rust** language.
 ```
 
 ## Instructions
-***Help***
+- **Help**
 ```shell
 USAGE:
     terminal-serial [FLAGS] [OPTIONS]
@@ -29,7 +29,7 @@ OPTIONS:
     -p, --port <TEXT>            Serial port name
     -s, --stopbits <1|2>         Set stop bits, 1 as default
 ```
-***Example***
+- **Example**
 ```shell
 # terminal-serial
 ---------------------------
