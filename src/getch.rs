@@ -1,3 +1,6 @@
+// The following code has been modified based on a third-party library getch
+// and is copyrighted by the original author.
+
 #[cfg(windows)]
 extern crate libc;
 #[cfg(windows)]
