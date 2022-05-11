@@ -37,4 +37,7 @@ OPTIONS:
 ```
 
 ## Download
-- Windows: [terminal-serial.tar.gz](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.tar.gz)
+- **Windows**
+    - [terminal-serial.zip](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.zip)
+    - [terminal-serial.tar.gz](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.tar.gz)
+    - [terminal-serial.7z](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.7z)
