@@ -35,3 +35,6 @@ OPTIONS:
 # terminal-serial -p com3 -b 115200 -d 8 -s 1 -a N -f N
 # terminal-serial -p /dev/tty.usbserial -b 115200 -d 8 -s 1 -a N -f N
 ```
+
+## Download
+- Windows: [terminal-serial.tar.gz](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.tar.gz)
