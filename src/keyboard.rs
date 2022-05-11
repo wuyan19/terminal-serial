@@ -53,7 +53,8 @@ pub struct Keyboard {
 
 impl Keyboard {
     fn getch(&self) -> u8 {
-        let c = getch::Getch.getch().unwrap();
+        let gc = getch::Getch::new();
+        let c = gc.getch().unwrap();
         // println!("getch: code 0x{:<02x}({0}), char {}", c, c as char);
         return c;
     }
