@@ -398,7 +398,7 @@ impl Keyboard {
                                         value: vec!['4' as u8],
                                         childs: TreeChild::Childs(vec![Box::new(TreeNode {
                                             value: vec!['~' as u8], // F12
-                                            childs: TreeChild::Value(Key::F11(KeyInfo {
+                                            childs: TreeChild::Value(Key::F12(KeyInfo {
                                                 raw_value: vec![
                                                     0x1b, 0x5b, '2' as u8, '4' as u8, '~' as u8,
                                                 ],
