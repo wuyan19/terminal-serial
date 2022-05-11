@@ -5,7 +5,7 @@
 
 #### 安装教程
 
-1.  进入源码目录 `# cd terminal-serial`
+1.  进入源码目录 `cd terminal-serial`
 2.  使用 `cargo` 构建应用程序 `cargo install --path .`
 
 #### 使用说明
