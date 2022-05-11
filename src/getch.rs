@@ -49,12 +49,6 @@ impl Getch {
             unsafe {
                 let k = _getch();
                 return Ok(k as u8);
-                // if k==0 {
-                //     // Ignore next input.
-                //     _getch();
-                // } else {
-                //     return Ok(k as u8)
-                // }
             }
         }
     }
@@ -69,33 +63,6 @@ impl Getch {
                     return Ok(r[0]);
                 }
             }
-            // if stdin.read(&mut r[..])? == 0 { return Ok(0) }
-            // else {
-            //     if r[0]==27 {
-            //         if stdin.read(&mut r[..])? == 0 { return Ok(0) }
-            //         if r[0] == b'[' || (r[0] >= b'0' && r[0] <= b'9') {
-            //             if stdin.read(&mut r[..])? == 0 { return Ok(0) }
-            //             // Skip all until we see a letter.
-            //             while !((r[0] >= b'a' && r[0] <= b'z') || (r[0] >= b'A' && r[0] <= b'Z')) {
-            //                 if stdin.read(&mut r[..])? == 0 { return Ok(0) }
-            //             }
-            //             if stdin.read(&mut r[..])? == 0 { return Ok(0) }
-            //             return Ok(r[0])
-            //         } else if r[0] == b'(' || r[0] == b')' || r[0] == b'#' {
-            //             // skip the next character and return
-            //             if stdin.read(&mut r[..])? == 0 { return Ok(0) }
-            //             if stdin.read(&mut r[..])? == 0 { return Ok(0) }
-            //             return Ok(r[0])
-            //         } else {
-            //             // return the next character
-            //             if stdin.read(&mut r[..])? == 0 { return Ok(0) }
-            //             return Ok(r[0])
-            //         }
-            //     } else {
-            //         // TODO: accept utf-8
-            //         return Ok(r[0])
-            //     }
-            // }
         }
     }
 }
