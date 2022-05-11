@@ -1,9 +1,9 @@
 extern crate serial;
 
-use crate::InputMessage;
 use crate::cmd::SerialPortInfo;
+use crate::{Input, InputMessage};
 use serial::prelude::*;
-use std::io::{stdout, prelude::*};
+use std::io::{prelude::*, stdout};
 use std::sync::{Arc, Mutex};
 use std::{thread, time::Duration};
 
@@ -23,10 +23,11 @@ impl TerminalSerial {
 
         println!("{} is connected. Press 'Ctrl + ]' to quit.", port);
 
+        let input = Input::new();
         let serial_port1 = Arc::clone(&sp);
         let quit1 = Arc::clone(&quit);
         handles.push(thread::spawn(move || loop {
-            match InputMessage::get_message() {
+            match input.get_message() {
                 InputMessage::Quit => {
                     let mut quit = quit1.lock().unwrap();
                     *quit = true;

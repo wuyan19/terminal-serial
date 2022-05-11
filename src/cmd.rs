@@ -12,7 +12,10 @@ pub struct SerialPortInfo {
 
 impl SerialPortInfo {
     pub fn new() -> SerialPortInfo {
-        SerialPortInfo { port_list: vec![], valid: false }
+        SerialPortInfo {
+            port_list: vec![],
+            valid: false,
+        }
     }
 
     pub fn get_info(&mut self) -> (String, serial::PortSettings) {
