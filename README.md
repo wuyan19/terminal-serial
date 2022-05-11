@@ -29,11 +29,13 @@
         -p, --port <TEXT>            Serial port name
         -s, --stopbits <1|2>         Set stop bits, 1 as default
     ```
-3. 在windows下可以使用如下方法
+3. 在windows下可以使用如下两种方法
     ```shell
+    # terminal-serial
     # terminal-serial -p com3 -b 115200 -d 8 -s 1 -a N -f N
     ```
-4. 在macOS下可以使用如下方法
+4. 在macOS下可以使用如下两种方法
     ```shell
+    # terminal-serial
     # terminal-serial -p /dev/tty.usbserial -b 115200 -d 8 -s 1 -a N -f N
     ```
