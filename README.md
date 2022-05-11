@@ -32,12 +32,24 @@ OPTIONS:
 ***Example***
 ```shell
 # terminal-serial
+---------------------------
+    Serial Port List
+---------------------------
+0 - COM3
+1 - COM8
+---------------------------
+Select <0~1>: 0
+com3 is connected. Press 'Ctrl + ]' to quit.
+
 # terminal-serial -p com3 -b 115200 -d 8 -s 1 -a N -f N
+com3 is connected. Press 'Ctrl + ]' to quit.
+
 # terminal-serial -p /dev/tty.usbserial -b 115200 -d 8 -s 1 -a N -f N
+/dev/tty.usbserial is connected. Press 'Ctrl + ]' to quit.
 ```
 
 ## Download
 - **Windows**
-    - [terminal-serial.zip](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.zip)
-    - [terminal-serial.tar.gz](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.tar.gz)
-    - [terminal-serial.7z](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.7z)
+    - [terminal-serial.zip](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.zip) - 359K
+    - [terminal-serial.tar.gz](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.tar.gz) - 370K
+    - [terminal-serial.7z](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.7z) - 273K
