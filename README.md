@@ -1,16 +1,16 @@
 # terminal-serial
 
-#### Introduce
+## Introduce
 A terminal serial port tool developed in the **Rust** language.
 
-#### Install
+## Install
 
 ```shell
 # cd terminal-serial
 # cargo install --path .
 ```
 
-#### Instructions
+## Instructions
 ***Help***
 ```shell
 USAGE:
