@@ -50,6 +50,8 @@ com3 is connected. Press 'Ctrl + ]' to quit.
 
 ## Release
 - **Windows**
-    - [terminal-serial.zip](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.zip) - 359K
-    - [terminal-serial.tar.gz](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.tar.gz) - 370K
-    - [terminal-serial.7z](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.7z) - 273K
+    - [terminal-serial.zip (359KB)](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.zip)
+    - [terminal-serial.tar.gz (370KB)](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.tar.gz)
+    - [terminal-serial.7z (273KB)](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.7z)
+- **macOS**
+    - [terminal-serial.zip (499KB)](https://gitee.com/wuyan19/application/blob/master/terminal-serial/macos/terminal-serial.zip)
