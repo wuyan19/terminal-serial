@@ -10,7 +10,11 @@ use std::{thread, time::Duration};
 pub struct TerminalSerial;
 
 impl TerminalSerial {
-    pub fn run() {
+    pub fn new() -> TerminalSerial {
+        TerminalSerial {}
+    }
+
+    pub fn run(&self) {
         let mut handles = Vec::with_capacity(3);
         let (port, setting) = SerialPortInfo::new().get_info();
 

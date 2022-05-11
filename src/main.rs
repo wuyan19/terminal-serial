@@ -1,5 +1,6 @@
 use terminal_serial::task::TerminalSerial;
 
 fn main() {
-    TerminalSerial::run();
+    let task = TerminalSerial::new();
+    task.run();
 }
