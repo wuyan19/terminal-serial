@@ -39,7 +39,7 @@ OPTIONS:
 1 - COM8
 ---------------------------
 Select <0~1>: 0
-com3 is connected. Press 'Ctrl + ]' to quit.
+COM3 is connected. Press 'Ctrl + ]' to quit.
 
 # terminal-serial -p com3 -b 115200 -d 8 -s 1 -a N -f N
 com3 is connected. Press 'Ctrl + ]' to quit.
