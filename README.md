@@ -22,8 +22,8 @@ FLAGS:
     -V, --version    Prints version information
 
 OPTIONS:
-    -b, --baudrate <INTEGER>     Set baud reate, 115200 as default
-    -d, --datasize <5|6|7|8>     Set datasize, 8 as default
+    -b, --baudrate <INTEGER>     Set baud rate, 115200 as default
+    -d, --datasize <5|6|7|8>     Set data size, 8 as default
     -f, --flowcontrol <N|S|H>    Set flow control, 'N' as default
     -a, --parity <N|O|E>         Set parity, 'N' as default
     -p, --port <TEXT>            Serial port name
@@ -49,9 +49,4 @@ com3 is connected. Press 'Ctrl + ]' to quit.
 ```
 
 ## Release
-- **Windows**
-    - [terminal-serial.zip (359KB)](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.zip)
-    - [terminal-serial.tar.gz (370KB)](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.tar.gz)
-    - [terminal-serial.7z (273KB)](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.7z)
-- **macOS**
-    - [terminal-serial.zip (499KB)](https://gitee.com/wuyan19/application/blob/master/terminal-serial/macos/terminal-serial.zip)
+To view all releases, please go to the [all releases](https://gitee.com/wuyan19/terminal-serial/releases) page.

@@ -14,20 +14,20 @@
 - **帮助**
 ```shell
 USAGE:
-terminal-serial [FLAGS] [OPTIONS]
+    terminal-serial [FLAGS] [OPTIONS]
 
 FLAGS:
--h, --help       Prints help information
--l, --list       List serial ports
--V, --version    Prints version information
+    -h, --help       Prints help information
+    -l, --list       List serial ports
+    -V, --version    Prints version information
 
 OPTIONS:
--b, --baudrate <INTEGER>     Set baud reate, 115200 as default
--d, --datasize <5|6|7|8>     Set datasize, 8 as default
--f, --flowcontrol <N|S|H>    Set flow control, 'N' as default
--a, --parity <N|O|E>         Set parity, 'N' as default
--p, --port <TEXT>            Serial port name
--s, --stopbits <1|2>         Set stop bits, 1 as default
+    -b, --baudrate <INTEGER>     Set baud rate, 115200 as default
+    -d, --datasize <5|6|7|8>     Set data size, 8 as default
+    -f, --flowcontrol <N|S|H>    Set flow control, 'N' as default
+    -a, --parity <N|O|E>         Set parity, 'N' as default
+    -p, --port <TEXT>            Serial port name
+    -s, --stopbits <1|2>         Set stop bits, 1 as default
 ```
 - **示例**
 ```shell
@@ -49,9 +49,4 @@ com3 is connected. Press 'Ctrl + ]' to quit.
 ```
 
 ## 发布
-- **Windows**
-    - [terminal-serial.zip (359KB)](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.zip)
-    - [terminal-serial.tar.gz (370KB)](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.tar.gz)
-    - [terminal-serial.7z (273KB)](https://gitee.com/wuyan19/application/blob/master/terminal-serial/windows/terminal-serial.7z)
-- **macOS**
-    - [terminal-serial.zip (499KB)](https://gitee.com/wuyan19/application/blob/master/terminal-serial/macos/terminal-serial.zip)
+查看所有发布版本，请跳转到[所有发布版本](https://gitee.com/wuyan19/terminal-serial/releases)页面。
