@@ -15,40 +15,42 @@ impl TerminalSerial {
     }
 
     pub fn run(&self) {
-        let mut handles = Vec::with_capacity(3);
+        let mut handles = vec![];
         let (port, setting) = SerialPortInfo::new().get_info();
 
-        let mut serial_port = serial::open(port.as_str()).unwrap();
-        serial_port.configure(&setting).unwrap();
-        serial_port.set_timeout(Duration::from_millis(1)).unwrap();
+        let mut com_port = serial::open(port.as_str()).unwrap();
+        com_port.configure(&setting).unwrap();
+        com_port.set_timeout(Duration::from_millis(1)).unwrap();
 
         let quit = Arc::new(Mutex::new(false));
-        let sp = Arc::new(Mutex::new(serial_port));
+        let serial_port = Arc::new(Mutex::new(com_port));
 
         println!("{} is connected. Press 'Ctrl + ]' to quit.", port);
 
-        let input = Input::new();
-        let serial_port1 = Arc::clone(&sp);
+        let serial_port1 = Arc::clone(&serial_port);
         let quit1 = Arc::clone(&quit);
-        handles.push(thread::spawn(move || loop {
-            match input.get_message() {
-                InputMessage::Quit => {
-                    let mut quit = quit1.lock().unwrap();
-                    *quit = true;
-                    break;
-                }
-                InputMessage::Data(msg) => {
-                    //println!("converted: {:?}", msg);
-                    let mut serial_port = serial_port1.lock().unwrap();
-                    if let Ok(_n) = serial_port.write(&msg) {
-                        //println!("write {} bytes.", _n);
+        handles.push(thread::spawn(move || {
+            let input = Input::new();
+            loop {
+                match input.get_message() {
+                    InputMessage::Quit => {
+                        let mut quit = quit1.lock().unwrap();
+                        *quit = true;
+                        break;
                     }
+                    InputMessage::Data(msg) => {
+                        //println!("converted: {:?}", msg);
+                        let mut serial_port = serial_port1.lock().unwrap();
+                        if let Ok(_n) = serial_port.write(&msg) {
+                            //println!("write {} bytes.", _n);
+                        }
+                    }
+                    _ => (), // Ignored
                 }
-                _ => (), // Ignored
             }
         }));
 
-        let serial_port2 = Arc::clone(&sp);
+        let serial_port2 = Arc::clone(&serial_port);
         let quit2 = Arc::clone(&quit);
         handles.push(thread::spawn(move || {
             let mut buf: Vec<u8> = vec![0; 2048];
@@ -68,6 +70,6 @@ impl TerminalSerial {
 
         handles.into_iter().for_each(|handle| {
             handle.join().unwrap();
-        })
+        });
     }
 }
