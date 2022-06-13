@@ -1,5 +1,5 @@
 name: Terminal-Serial
-version: "0.1.0"
+version: "0.1.1"
 # author: Yan Wu.
 # about: Serial port tool on the command line.
 
@@ -14,7 +14,7 @@ args:
         short: b
         long: baudrate
         value_name: INTEGER
-        help: Set baud reate, 115200 as default
+        help: Set baud rate, 115200 as default
         takes_value: true
     - parity:
         short: a
@@ -26,7 +26,7 @@ args:
         short: d
         long: datasize
         value_name: "5|6|7|8"
-        help: Set datasize, 8 as default
+        help: Set data size, 8 as default
         takes_value: true
     - stopbits:
         short: s
