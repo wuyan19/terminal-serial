@@ -1,16 +1,13 @@
-extern crate serial;
-
-use serial::SerialPort;
 use std::collections::VecDeque;
 use std::io::{Read, Write};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
 const MCP_BUFFER_MAX: usize = 65536;
 
 pub struct SerialStatus {
     pub port_name: String,
-    pub baud_rate: usize,
+    pub baud_rate: u32,
     pub char_size: String,
     pub parity: String,
     pub stop_bits: String,
@@ -19,29 +16,21 @@ pub struct SerialStatus {
 }
 
 pub struct SerialManager {
-    port: Arc<Mutex<Box<dyn serial::SerialPort + Send>>>,
+    port: Arc<Mutex<Box<dyn serialport::SerialPort>>>,
     port_name: String,
-    setting: serial::PortSettings,
-    read_buffer: Arc<Mutex<VecDeque<u8>>>,
+    read_buffer: Arc<(Mutex<VecDeque<u8>>, Condvar)>,
     quit: Arc<Mutex<bool>>,
 }
 
 impl SerialManager {
     pub fn from_parts(
-        port: Arc<Mutex<Box<dyn serial::SerialPort + Send>>>,
-        read_buffer: Arc<Mutex<VecDeque<u8>>>,
+        port: Arc<Mutex<Box<dyn serialport::SerialPort>>>,
+        read_buffer: Arc<(Mutex<VecDeque<u8>>, Condvar)>,
         port_name: String,
     ) -> SerialManager {
         SerialManager {
             port,
             port_name,
-            setting: serial::PortSettings {
-                baud_rate: serial::Baud115200,
-                char_size: serial::Bits8,
-                parity: serial::ParityNone,
-                stop_bits: serial::Stop1,
-                flow_control: serial::FlowNone,
-            },
             read_buffer,
             quit: Arc::new(Mutex::new(false)),
         }
@@ -49,33 +38,37 @@ impl SerialManager {
 
     pub fn open(
         port_name: &str,
-        setting: serial::PortSettings,
+        baud_rate: u32,
+        data_bits: serialport::DataBits,
+        parity: serialport::Parity,
+        stop_bits: serialport::StopBits,
+        flow_control: serialport::FlowControl,
     ) -> Result<SerialManager, String> {
-        let mut com_port =
-            serial::open(port_name).map_err(|e| format!("Failed to open {}: {}", port_name, e))?;
-
-        com_port
-            .configure(&setting)
-            .map_err(|e| format!("Failed to configure {}: {}", port_name, e))?;
-
-        com_port
-            .set_timeout(Duration::from_millis(1))
-            .map_err(|e| format!("Failed to set timeout for {}: {}", port_name, e))?;
+        let port = serialport::new(port_name, baud_rate)
+            .data_bits(data_bits)
+            .parity(parity)
+            .stop_bits(stop_bits)
+            .flow_control(flow_control)
+            .timeout(Duration::from_millis(1))
+            .open()
+            .map_err(|e| format!("Failed to open {}: {}", port_name, e))?;
 
         Ok(SerialManager {
-            port: Arc::new(Mutex::new(Box::new(com_port))),
+            port: Arc::new(Mutex::new(port)),
             port_name: port_name.to_string(),
-            setting,
-            read_buffer: Arc::new(Mutex::new(VecDeque::with_capacity(MCP_BUFFER_MAX))),
+            read_buffer: Arc::new((
+                Mutex::new(VecDeque::with_capacity(MCP_BUFFER_MAX)),
+                Condvar::new(),
+            )),
             quit: Arc::new(Mutex::new(false)),
         })
     }
 
-    pub fn port(&self) -> Arc<Mutex<Box<dyn serial::SerialPort + Send>>> {
+    pub fn port(&self) -> Arc<Mutex<Box<dyn serialport::SerialPort>>> {
         Arc::clone(&self.port)
     }
 
-    pub fn read_buffer(&self) -> Arc<Mutex<VecDeque<u8>>> {
+    pub fn read_buffer(&self) -> Arc<(Mutex<VecDeque<u8>>, Condvar)> {
         Arc::clone(&self.read_buffer)
     }
 
@@ -94,66 +87,67 @@ impl SerialManager {
     }
 
     pub fn push_to_buffer(&self, data: &[u8]) {
-        let mut buffer = self.read_buffer.lock().unwrap();
+        let (lock, cvar) = &*self.read_buffer;
+        let mut buffer = lock.lock().unwrap();
         for &b in data {
             if buffer.len() >= MCP_BUFFER_MAX {
                 buffer.pop_front();
             }
             buffer.push_back(b);
         }
+        cvar.notify_one();
     }
 
     pub fn drain_buffer(&self, timeout_ms: u32) -> Vec<u8> {
-        if timeout_ms > 0 {
-            let start = std::time::Instant::now();
-            loop {
-                {
-                    let buffer = self.read_buffer.lock().unwrap();
-                    if !buffer.is_empty() {
-                        break;
-                    }
-                }
-                if start.elapsed().as_millis() as u32 >= timeout_ms {
-                    break;
-                }
-                std::thread::sleep(Duration::from_millis(2));
+        let (lock, cvar) = &*self.read_buffer;
+        let mut buffer = lock.lock().unwrap();
+        if timeout_ms > 0 && buffer.is_empty() {
+            let result = cvar.wait_timeout(buffer, Duration::from_millis(timeout_ms as u64));
+            buffer = lock.lock().unwrap();
+            if let Err(_) = result {
+                // timeout or error, just drain whatever is available
             }
         }
-
-        let mut buffer = self.read_buffer.lock().unwrap();
         buffer.drain(..).collect()
     }
 
     pub fn clear_buffer(&self) {
-        let mut buffer = self.read_buffer.lock().unwrap();
+        let (lock, _) = &*self.read_buffer;
+        let mut buffer = lock.lock().unwrap();
         buffer.clear();
     }
 
     pub fn status(&self) -> SerialStatus {
-        let char_size = match self.setting.char_size {
-            serial::CharSize::Bits5 => "5",
-            serial::CharSize::Bits6 => "6",
-            serial::CharSize::Bits7 => "7",
-            serial::CharSize::Bits8 => "8",
+        let port = self.port.lock().unwrap();
+
+        let baud_rate = port.baud_rate().unwrap_or(0);
+        let char_size = match port.data_bits() {
+            Ok(serialport::DataBits::Five) => "5",
+            Ok(serialport::DataBits::Six) => "6",
+            Ok(serialport::DataBits::Seven) => "7",
+            _ => "8",
         };
-        let parity = match self.setting.parity {
-            serial::Parity::ParityNone => "None",
-            serial::Parity::ParityOdd => "Odd",
-            serial::Parity::ParityEven => "Even",
+        let parity = match port.parity() {
+            Ok(serialport::Parity::None) => "None",
+            Ok(serialport::Parity::Odd) => "Odd",
+            Ok(serialport::Parity::Even) => "Even",
+            _ => "None",
         };
-        let stop_bits = match self.setting.stop_bits {
-            serial::StopBits::Stop1 => "1",
-            serial::StopBits::Stop2 => "2",
+        let stop_bits = match port.stop_bits() {
+            Ok(serialport::StopBits::One) => "1",
+            Ok(serialport::StopBits::Two) => "2",
+            _ => "1",
         };
-        let flow_control = match self.setting.flow_control {
-            serial::FlowControl::FlowNone => "None",
-            serial::FlowControl::FlowSoftware => "Software",
-            serial::FlowControl::FlowHardware => "Hardware",
+        let flow_control = match port.flow_control() {
+            Ok(serialport::FlowControl::None) => "None",
+            Ok(serialport::FlowControl::Software) => "Software",
+            Ok(serialport::FlowControl::Hardware) => "Hardware",
+            _ => "None",
         };
 
         SerialStatus {
             port_name: self.port_name.clone(),
-            baud_rate: self.setting.baud_rate.speed(),
+            baud_rate,
             char_size: char_size.to_string(),
             parity: parity.to_string(),
             stop_bits: stop_bits.to_string(),

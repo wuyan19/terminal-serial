@@ -1,5 +1,4 @@
 extern crate clap;
-extern crate serial;
 
 use clap::{load_yaml, App};
 use std::io::{stdin, stdout, Write};
@@ -7,65 +6,33 @@ use std::process;
 
 pub struct AppConfig {
     pub port: String,
-    pub setting: serial::PortSettings,
+    pub baud_rate: u32,
+    pub data_bits: serialport::DataBits,
+    pub parity: serialport::Parity,
+    pub stop_bits: serialport::StopBits,
+    pub flow_control: serialport::FlowControl,
     pub serve: bool,
     pub mcp_host: String,
     pub mcp_port: u16,
 }
 
 fn get_serial_port_list() -> Vec<String> {
-    let mut port_list: Vec<String> = Vec::new();
-
-    #[cfg(windows)]
-    {
-        use winreg::{enums::HKEY_LOCAL_MACHINE, RegKey};
-        let serial_comms =
-            RegKey::predef(HKEY_LOCAL_MACHINE).open_subkey("HARDWARE\\DEVICEMAP\\SERIALCOMM");
-        if let Ok(serial) = serial_comms {
-            for (_name, value) in serial.enum_values().map(|x| x.unwrap()) {
-                if let Ok(com) = String::from_utf8(value.bytes) {
-                    let mut tmp = String::new();
-                    for val in com.as_bytes().iter() {
-                        if *val != 0 {
-                            tmp.push(*val as char);
-                        }
-                    }
-                    port_list.push(tmp);
-                }
-            }
-        }
-    }
-
-    #[cfg(not(windows))]
-    {
-        let items = std::fs::read_dir("/dev/").unwrap();
-
-        for item in items {
-            let file = item.unwrap().path().display().to_string();
-            #[cfg(target_os = "macos")]
-            if file.contains("tty.") && file.contains("usb") {
-                port_list.push(file);
-            }
-            #[cfg(target_os = "linux")]
-            if file.contains("ttyUSB") {
-                port_list.push(file);
-            }
-        }
-    }
-
-    port_list
+    serialport::available_ports()
+        .unwrap_or_default()
+        .into_iter()
+        .map(|p| p.port_name)
+        .collect()
 }
 
 pub fn cmd_parse() -> AppConfig {
     let cmd = load_yaml!("cmd.yml");
     let arg_matches = App::from_yaml(cmd).get_matches();
-    let mut setting: serial::PortSettings = serial::PortSettings {
-        baud_rate: serial::Baud115200,
-        char_size: serial::Bits8,
-        parity: serial::ParityNone,
-        stop_bits: serial::Stop1,
-        flow_control: serial::FlowNone,
-    };
+
+    let mut baud_rate: u32 = 115200;
+    let mut data_bits = serialport::DataBits::Eight;
+    let mut parity = serialport::Parity::None;
+    let mut stop_bits = serialport::StopBits::One;
+    let mut flow_control = serialport::FlowControl::None;
     let mut port = String::new();
     let port_list = get_serial_port_list();
     let show_serial_port_list = |port_list: &Vec<String>| {
@@ -119,19 +86,20 @@ pub fn cmd_parse() -> AppConfig {
     }
 
     if let Some(baudrate) = arg_matches.value_of("baudrate") {
-        if let Ok(value) = baudrate.to_string().trim().parse::<usize>() {
-            setting.baud_rate = serial::BaudRate::from_speed(value);
-        } else {
-            println!("Baudrate setting error.");
-            process::exit(0);
+        match baudrate.trim().parse::<u32>() {
+            Ok(v) => baud_rate = v,
+            Err(_) => {
+                println!("Baudrate setting error.");
+                process::exit(0);
+            }
         }
     }
 
-    if let Some(parity) = arg_matches.value_of("parity") {
-        match parity {
-            "N" | "n" => setting.parity = serial::Parity::ParityNone,
-            "O" | "o" => setting.parity = serial::Parity::ParityOdd,
-            "E" | "e" => setting.parity = serial::Parity::ParityEven,
+    if let Some(p) = arg_matches.value_of("parity") {
+        match p {
+            "N" | "n" => parity = serialport::Parity::None,
+            "O" | "o" => parity = serialport::Parity::Odd,
+            "E" | "e" => parity = serialport::Parity::Even,
             _ => {
                 println!("Parity setting error.");
                 process::exit(0);
@@ -139,12 +107,12 @@ pub fn cmd_parse() -> AppConfig {
         }
     }
 
-    if let Some(datasize) = arg_matches.value_of("datasize") {
-        match datasize {
-            "5" => setting.char_size = serial::CharSize::Bits5,
-            "6" => setting.char_size = serial::CharSize::Bits6,
-            "7" => setting.char_size = serial::CharSize::Bits7,
-            "8" => setting.char_size = serial::CharSize::Bits8,
+    if let Some(d) = arg_matches.value_of("datasize") {
+        match d {
+            "5" => data_bits = serialport::DataBits::Five,
+            "6" => data_bits = serialport::DataBits::Six,
+            "7" => data_bits = serialport::DataBits::Seven,
+            "8" => data_bits = serialport::DataBits::Eight,
             _ => {
                 println!("Datasize setting error.");
                 process::exit(0);
@@ -152,10 +120,10 @@ pub fn cmd_parse() -> AppConfig {
         }
     }
 
-    if let Some(stopbits) = arg_matches.value_of("stopbits") {
-        match stopbits {
-            "1" => setting.stop_bits = serial::StopBits::Stop1,
-            "2" => setting.stop_bits = serial::StopBits::Stop2,
+    if let Some(s) = arg_matches.value_of("stopbits") {
+        match s {
+            "1" => stop_bits = serialport::StopBits::One,
+            "2" => stop_bits = serialport::StopBits::Two,
             _ => {
                 println!("Stopbits setting error.");
                 process::exit(0);
@@ -163,11 +131,11 @@ pub fn cmd_parse() -> AppConfig {
         }
     }
 
-    if let Some(flowcontrol) = arg_matches.value_of("flowcontrol") {
-        match flowcontrol {
-            "N" | "n" => setting.flow_control = serial::FlowControl::FlowNone,
-            "S" | "s" => setting.flow_control = serial::FlowControl::FlowSoftware,
-            "H" | "h" => setting.flow_control = serial::FlowControl::FlowHardware,
+    if let Some(f) = arg_matches.value_of("flowcontrol") {
+        match f {
+            "N" | "n" => flow_control = serialport::FlowControl::None,
+            "S" | "s" => flow_control = serialport::FlowControl::Software,
+            "H" | "h" => flow_control = serialport::FlowControl::Hardware,
             _ => {
                 println!("Flow control setting error.");
                 process::exit(0);
@@ -195,7 +163,11 @@ pub fn cmd_parse() -> AppConfig {
 
     AppConfig {
         port,
-        setting,
+        baud_rate,
+        data_bits,
+        parity,
+        stop_bits,
+        flow_control,
         serve,
         mcp_host,
         mcp_port,

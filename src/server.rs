@@ -3,19 +3,19 @@ use crate::serial_manager::SerialManager;
 use std::collections::VecDeque;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpListener;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 
 pub struct McpServer {
-    read_buffer: Arc<Mutex<VecDeque<u8>>>,
-    serial_port: Arc<Mutex<Box<dyn serial::SerialPort + Send>>>,
+    read_buffer: Arc<(Mutex<VecDeque<u8>>, Condvar)>,
+    serial_port: Arc<Mutex<Box<dyn serialport::SerialPort>>>,
     quit: Arc<Mutex<bool>>,
     port_name: String,
 }
 
 impl McpServer {
     pub fn new(
-        read_buffer: Arc<Mutex<VecDeque<u8>>>,
-        serial_port: Arc<Mutex<Box<dyn serial::SerialPort + Send>>>,
+        read_buffer: Arc<(Mutex<VecDeque<u8>>, Condvar)>,
+        serial_port: Arc<Mutex<Box<dyn serialport::SerialPort>>>,
         quit: Arc<Mutex<bool>>,
         port_name: String,
     ) -> Self {
@@ -67,8 +67,8 @@ impl McpServer {
 
 fn handle_connection(
     stream: std::net::TcpStream,
-    read_buffer: Arc<Mutex<VecDeque<u8>>>,
-    serial_port: Arc<Mutex<Box<dyn serial::SerialPort + Send>>>,
+    read_buffer: Arc<(Mutex<VecDeque<u8>>, Condvar)>,
+    serial_port: Arc<Mutex<Box<dyn serialport::SerialPort>>>,
     port_name: String,
 ) {
     let writer = match stream.try_clone() {
