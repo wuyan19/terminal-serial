@@ -5,6 +5,8 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpListener;
 use std::sync::{Arc, Condvar, Mutex};
 
+const MAX_BODY_SIZE: usize = 10 * 1024 * 1024; // 10MB
+
 pub struct McpServer {
     read_buffer: Arc<(Mutex<VecDeque<u8>>, Condvar)>,
     serial_port: Arc<Mutex<Box<dyn serialport::SerialPort>>>,
@@ -13,17 +15,12 @@ pub struct McpServer {
 }
 
 impl McpServer {
-    pub fn new(
-        read_buffer: Arc<(Mutex<VecDeque<u8>>, Condvar)>,
-        serial_port: Arc<Mutex<Box<dyn serialport::SerialPort>>>,
-        quit: Arc<Mutex<bool>>,
-        port_name: String,
-    ) -> Self {
+    pub fn new(manager: &SerialManager) -> Self {
         McpServer {
-            read_buffer,
-            serial_port,
-            quit,
-            port_name,
+            read_buffer: manager.read_buffer(),
+            serial_port: manager.port(),
+            quit: manager.quit_flag(),
+            port_name: manager.port_name().to_string(),
         }
     }
 
@@ -93,9 +90,26 @@ fn handle_connection(
     let method = parts[0];
     let path = parts[1];
 
-    // 只处理 POST /mcp
-    if method != "POST" || path != "/mcp" {
+    if path != "/mcp" {
         send_http_error(&mut writer, 404, "Not Found");
+        return;
+    }
+
+    // CORS 预检请求
+    if method == "OPTIONS" {
+        let response = "HTTP/1.1 204 No Content\r\n\
+            Access-Control-Allow-Origin: *\r\n\
+            Access-Control-Allow-Methods: POST, OPTIONS\r\n\
+            Access-Control-Allow-Headers: Content-Type\r\n\
+            Access-Control-Max-Age: 86400\r\n\
+            Content-Length: 0\r\n\r\n";
+        let _ = writer.write_all(response.as_bytes());
+        let _ = writer.flush();
+        return;
+    }
+
+    if method != "POST" {
+        send_http_error(&mut writer, 405, "Method Not Allowed");
         return;
     }
 
@@ -113,6 +127,12 @@ fn handle_connection(
             let value = header_line[pos + 15..].trim();
             content_length = value.parse().unwrap_or(0);
         }
+    }
+
+    // 请求体大小限制
+    if content_length > MAX_BODY_SIZE {
+        send_http_error(&mut writer, 413, "Payload Too Large");
+        return;
     }
 
     // 读取请求体
@@ -150,7 +170,7 @@ fn handle_connection(
 fn send_http_error(writer: &mut std::net::TcpStream, code: u16, message: &str) {
     let body = format!("{{\"error\": {{\"code\": {}, \"message\": \"{}\"}}}}", code, message);
     let response = format!(
-        "HTTP/1.1 {} {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{}",
+        "HTTP/1.1 {} {}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\n\r\n{}",
         code,
         message,
         body.len(),

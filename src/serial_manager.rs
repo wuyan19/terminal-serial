@@ -102,11 +102,10 @@ impl SerialManager {
         let (lock, cvar) = &*self.read_buffer;
         let mut buffer = lock.lock().unwrap();
         if timeout_ms > 0 && buffer.is_empty() {
-            let result = cvar.wait_timeout(buffer, Duration::from_millis(timeout_ms as u64));
-            buffer = lock.lock().unwrap();
-            if let Err(_) = result {
-                // timeout or error, just drain whatever is available
-            }
+            let guard = cvar
+                .wait_timeout(buffer, Duration::from_millis(timeout_ms as u64))
+                .unwrap_or_else(|e| e.into_inner());
+            buffer = guard.0;
         }
         buffer.drain(..).collect()
     }

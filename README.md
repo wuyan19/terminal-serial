@@ -6,8 +6,8 @@ A terminal serial port tool developed in the **Rust** language.
 ## Install
 
 ```shell
-# cd terminal-serial
-# cargo install --path .
+cd terminal-serial
+cargo install --path .
 ```
 
 ## Instructions
@@ -34,21 +34,21 @@ OPTIONS:
 ```
 - **Example**
 ```shell
-# terminal-serial
----------------------------
-    Serial Port List
----------------------------
-1 - COM3
-2 - COM8
----------------------------
-Select <1~2>: 1
-COM3 is connected. Press 'Ctrl + ]' to quit.
+terminal-serial
+# ---------------------------
+#     Serial Port List
+# ---------------------------
+# 1 - COM3
+# 2 - COM8
+# ---------------------------
+# Select <1~2>: 1
+# COM3 is connected. Press 'Ctrl + ]' to quit.
 
-# terminal-serial -p com3 -b 115200 -d 8 -s 1 -a N -f N
-com3 is connected. Press 'Ctrl + ]' to quit.
+terminal-serial -p com3 -b 115200 -d 8 -s 1 -a N -f N
+# com3 is connected. Press 'Ctrl + ]' to quit.
 
-# terminal-serial -p /dev/tty.usbserial -b 115200 -d 8 -s 1 -a N -f N
-/dev/tty.usbserial is connected. Press 'Ctrl + ]' to quit.
+terminal-serial -p /dev/tty.usbserial -b 115200 -d 8 -s 1 -a N -f N
+# /dev/tty.usbserial is connected. Press 'Ctrl + ]' to quit.
 ```
 
 ## MCP Server

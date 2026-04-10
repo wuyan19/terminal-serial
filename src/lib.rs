@@ -9,6 +9,9 @@ pub mod task;
 use keyboard::Key;
 use keyboard::Keyboard;
 
+const CTRL_RIGHT_BRACKET: u8 = 0x1d; // Ctrl + ] 退出
+const CTRL_K: u8 = 0x0b;             // Ctrl + K 清空 MCP 读缓冲区
+
 pub enum InputMessage {
     Quit,
     Data(Vec<u8>),
@@ -31,47 +34,18 @@ impl Input {
         let input = self.keyboard.get_input();
         match input {
             Key::Other(x) => {
-                if x.raw_value.len() == 1 && x.raw_value[0] == 0x1d {
-                    // Ctrl + ]
-                    return InputMessage::Quit;
-                } else if x.raw_value.len() == 1 && x.raw_value[0] == 0x0b {
-                    // Ctrl + K
-                    return InputMessage::ClearBuffer;
+                if x.raw_value.len() == 1 && x.raw_value[0] == CTRL_RIGHT_BRACKET {
+                    InputMessage::Quit
+                } else if x.raw_value.len() == 1 && x.raw_value[0] == CTRL_K {
+                    InputMessage::ClearBuffer
                 } else {
-                    return InputMessage::Data(x.dst_value);
+                    InputMessage::Data(x.dst_value)
                 }
             }
-            Key::Up(x) => {
-                return InputMessage::Data(x.dst_value);
-            }
-            Key::Down(x) => {
-                return InputMessage::Data(x.dst_value);
-            }
-            Key::Right(x) => {
-                return InputMessage::Data(x.dst_value);
-            }
-            Key::Left(x) => {
-                return InputMessage::Data(x.dst_value);
-            }
-            Key::Insert(x) => {
-                return InputMessage::Data(x.dst_value);
-            }
-            Key::Delete(x) => {
-                return InputMessage::Data(x.dst_value);
-            }
-            Key::Home(x) => {
-                return InputMessage::Data(x.dst_value);
-            }
-            Key::End(x) => {
-                return InputMessage::Data(x.dst_value);
-            }
-            Key::PageUp(x) => {
-                return InputMessage::Data(x.dst_value);
-            }
-            Key::PageDown(x) => {
-                return InputMessage::Data(x.dst_value);
-            }
-            _ => return InputMessage::None,
+            Key::Up(x) | Key::Down(x) | Key::Right(x) | Key::Left(x)
+            | Key::Insert(x) | Key::Delete(x) | Key::Home(x) | Key::End(x)
+            | Key::PageUp(x) | Key::PageDown(x) => InputMessage::Data(x.dst_value),
+            _ => InputMessage::None,
         }
     }
 }

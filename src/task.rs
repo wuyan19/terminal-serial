@@ -1,3 +1,4 @@
+use crate::cmd::AppConfig;
 use crate::serial_manager::SerialManager;
 use crate::server::McpServer;
 use crate::{Input, InputMessage};
@@ -6,41 +7,22 @@ use std::io::{prelude::*, stdout};
 use std::{thread, time::Duration};
 
 pub struct TerminalSerial<'a> {
-    port: &'a str,
-    baud_rate: u32,
-    data_bits: serialport::DataBits,
-    parity: serialport::Parity,
-    stop_bits: serialport::StopBits,
-    flow_control: serialport::FlowControl,
+    config: &'a AppConfig,
 }
 
 impl<'a> TerminalSerial<'a> {
-    pub fn new(
-        port: &'a str,
-        baud_rate: u32,
-        data_bits: serialport::DataBits,
-        parity: serialport::Parity,
-        stop_bits: serialport::StopBits,
-        flow_control: serialport::FlowControl,
-    ) -> TerminalSerial<'a> {
-        TerminalSerial {
-            port,
-            baud_rate,
-            data_bits,
-            parity,
-            stop_bits,
-            flow_control,
-        }
+    pub fn new(config: &'a AppConfig) -> TerminalSerial<'a> {
+        TerminalSerial { config }
     }
 
-    pub fn run(&self, serve: bool, mcp_host: &str, mcp_port: u16) {
+    pub fn run(&self) {
         let manager = match SerialManager::open(
-            self.port,
-            self.baud_rate,
-            self.data_bits,
-            self.parity,
-            self.stop_bits,
-            self.flow_control,
+            &self.config.port,
+            self.config.baud_rate,
+            self.config.data_bits,
+            self.config.parity,
+            self.config.stop_bits,
+            self.config.flow_control,
         ) {
             Ok(m) => m,
             Err(e) => {
@@ -54,19 +36,14 @@ impl<'a> TerminalSerial<'a> {
             manager.port_name()
         );
 
-        if serve {
+        if self.config.serve {
             println!(
                 "MCP server listening on {}:{}",
-                mcp_host, mcp_port
+                self.config.mcp_host, self.config.mcp_port
             );
             println!("Press 'Ctrl + K' to clear MCP read buffer.");
-            let mcp_server = McpServer::new(
-                manager.read_buffer(),
-                manager.port(),
-                manager.quit_flag(),
-                manager.port_name().to_string(),
-            );
-            mcp_server.start(mcp_host, mcp_port);
+            let mcp_server = McpServer::new(&manager);
+            mcp_server.start(&self.config.mcp_host, self.config.mcp_port);
         }
 
         let quit1 = manager.quit_flag();
@@ -94,12 +71,12 @@ impl<'a> TerminalSerial<'a> {
                         buffer.clear();
                         drop(buffer);
                         print!("[Buffer cleared]\r\n");
-                        if let Ok(_) = stdout().flush() {}
+                        let _ = stdout().flush();
                     }
                     InputMessage::Data(msg) => {
                         if let Some(text) = decode_gbk_input(&msg, &mut gbk_pending) {
                             let mut serial_port = serial_port1.lock().unwrap();
-                            if let Ok(_) = serial_port.write_all(text.as_bytes()) {}
+                            let _ = serial_port.write_all(text.as_bytes());
                         }
                     }
                     _ => (),
@@ -112,26 +89,33 @@ impl<'a> TerminalSerial<'a> {
             let mut buf: Vec<u8> = vec![0; 2048];
             loop {
                 thread::sleep(Duration::from_millis(2));
-                let mut serial_port = serial_port2.lock().unwrap();
-                if let Ok(n) = serial_port.read(&mut buf[..]) {
-                    if n > 0 {
-                        print!("{}", String::from_utf8_lossy(&buf[0..n]));
-                        if let Ok(_) = stdout().flush() {}
 
-                        // 同时填充 MCP 读取缓冲区
-                        {
-                            let (lock, cvar) = &*read_buffer;
-                            let mut buffer = lock.lock().unwrap();
-                            for &b in &buf[0..n] {
-                                if buffer.len() >= 65536 {
-                                    buffer.pop_front();
-                                }
-                                buffer.push_back(b);
-                            }
-                            cvar.notify_one();
-                        }
+                // 仅在串口读取期间持锁，读取后立即释放
+                let data = {
+                    let mut serial_port = serial_port2.lock().unwrap();
+                    match serial_port.read(&mut buf[..]) {
+                        Ok(n) if n > 0 => Some(buf[0..n].to_vec()),
+                        _ => None,
                     }
                 };
+
+                if let Some(data) = data {
+                    // 终端输出（不持串口锁）
+                    print!("{}", String::from_utf8_lossy(&data));
+                    let _ = stdout().flush();
+
+                    // MCP 缓冲区写入（独立的锁）
+                    let (lock, cvar) = &*read_buffer;
+                    let mut buffer = lock.lock().unwrap();
+                    for &b in &data {
+                        if buffer.len() >= 65536 {
+                            buffer.pop_front();
+                        }
+                        buffer.push_back(b);
+                    }
+                    cvar.notify_one();
+                }
+
                 let quit = quit2.lock().unwrap();
                 if *quit {
                     break;
@@ -147,7 +131,7 @@ impl<'a> TerminalSerial<'a> {
 
 fn decode_gbk_input(msg: &[u8], pending: &mut Vec<u8>) -> Option<String> {
     let (utf8_string, _, _) = GBK.decode(msg);
-    if !msg.is_empty() && msg[0] > 0x80 && msg[0] < 0xFF {
+    if !msg.is_empty() && msg[0] >= 0x81 && msg[0] <= 0xFE {
         pending.push(msg[0]);
         if pending.len() % 2 == 1 {
             return None; // 等待第二个字节

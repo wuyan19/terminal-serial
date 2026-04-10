@@ -1,4 +1,4 @@
-use crate::getch;
+use crate::getch::Getch;
 
 #[derive(Debug, Clone)]
 pub enum Key<T> {
@@ -33,429 +33,275 @@ pub struct KeyInfo {
     pub dst_value: Vec<u8>,
 }
 
-#[derive(Debug)]
-enum TreeChild<T> {
-    Childs(T),
-    Value(Key<KeyInfo>),
-}
-
-#[derive(Debug)]
-struct TreeNode {
-    value: Vec<u8>,
-    childs: TreeChild<Vec<Box<TreeNode>>>,
-}
-
-type TreeRoot = TreeNode;
-
 pub struct Keyboard {
-    key_tree: TreeRoot,
-}
-
-impl Keyboard {
-    fn getch(&self) -> u8 {
-        let gc = getch::Getch::new();
-        let c = gc.getch().unwrap();
-        // println!("getch: code 0x{:<02x}({0}), char {}", c, c as char);
-        return c;
-    }
-
-    fn search(&self, node: &TreeNode, v: u8) -> Option<Key<KeyInfo>> {
-        if node.value.contains(&v) {
-            match &node.childs {
-                TreeChild::Childs(childs) => {
-                    let c = self.getch();
-                    for child in childs {
-                        if let Some(x) = &self.search(&child, c) {
-                            return Some(x.clone());
-                        }
-                    }
-                    return None;
-                }
-                TreeChild::Value(x) => return Some(x.clone()),
-            }
-        }
-        return None;
-    }
-
-    pub fn get_input(&self) -> Key<KeyInfo> {
-        let c = self.getch();
-        if let Some(x) = self.search(&self.key_tree, c) {
-            // println!("{:?}", x);
-            return x;
-        } else {
-            return Key::Other(KeyInfo {
-                raw_value: vec![c],
-                dst_value: vec![c],
-            });
-        }
-    }
+    getch: Getch,
 }
 
 impl Keyboard {
     pub fn new() -> Keyboard {
         Keyboard {
-            #[cfg(windows)]
-            key_tree: TreeRoot {
-                value: vec![0xe0, 0x00],
-                childs: TreeChild::Childs(vec![
-                    Box::new(TreeNode {
-                        value: vec!['H' as u8], // Up
-                        childs: TreeChild::Value(Key::Up(KeyInfo {
-                            raw_value: vec![0xe0, 'H' as u8],
-                            dst_value: vec![0x1b, 0x5b, 'A' as u8],
-                        })),
-                    }),
-                    Box::new(TreeNode {
-                        value: vec!['P' as u8], // Down
-                        childs: TreeChild::Value(Key::Down(KeyInfo {
-                            raw_value: vec![0xe0, 'P' as u8],
-                            dst_value: vec![0x1b, 0x5b, 'B' as u8],
-                        })),
-                    }),
-                    Box::new(TreeNode {
-                        value: vec!['M' as u8], // Right
-                        childs: TreeChild::Value(Key::Right(KeyInfo {
-                            raw_value: vec![0xe0, 'M' as u8],
-                            dst_value: vec![0x1b, 0x5b, 'C' as u8],
-                        })),
-                    }),
-                    Box::new(TreeNode {
-                        value: vec!['K' as u8], // Left
-                        childs: TreeChild::Value(Key::Left(KeyInfo {
-                            raw_value: vec![0xe0, 'K' as u8],
-                            dst_value: vec![0x1b, 0x5b, 'D' as u8],
-                        })),
-                    }),
-                    Box::new(TreeNode {
-                        value: vec!['G' as u8], // Home
-                        childs: TreeChild::Value(Key::Home(KeyInfo {
-                            raw_value: vec![0xe0, 'G' as u8],
-                            dst_value: vec![0x1b, 0x5b, 'H' as u8],
-                        })),
-                    }),
-                    Box::new(TreeNode {
-                        value: vec!['O' as u8], // End
-                        childs: TreeChild::Value(Key::End(KeyInfo {
-                            raw_value: vec![0xe0, 'O' as u8],
-                            dst_value: vec![0x1b, 0x5b, 'F' as u8],
-                        })),
-                    }),
-                    Box::new(TreeNode {
-                        value: vec!['R' as u8], // Insert
-                        childs: TreeChild::Value(Key::Insert(KeyInfo {
-                            raw_value: vec![0xe0, 'R' as u8],
-                            dst_value: vec![0x1b, 0x5b, '2' as u8, '~' as u8],
-                        })),
-                    }),
-                    Box::new(TreeNode {
-                        value: vec!['S' as u8], // Delete
-                        childs: TreeChild::Value(Key::Delete(KeyInfo {
-                            raw_value: vec![0xe0, 'S' as u8],
-                            dst_value: vec![0x1b, 0x5b, '3' as u8, '~' as u8],
-                        })),
-                    }),
-                    Box::new(TreeNode {
-                        value: vec!['I' as u8], // PageUp
-                        childs: TreeChild::Value(Key::PageUp(KeyInfo {
-                            raw_value: vec![0xe0, 'I' as u8],
-                            dst_value: vec![0x1b, 0x5b, '5' as u8, '~' as u8],
-                        })),
-                    }),
-                    Box::new(TreeNode {
-                        value: vec!['Q' as u8], // PageDown
-                        childs: TreeChild::Value(Key::PageDown(KeyInfo {
-                            raw_value: vec![0xe0, 'Q' as u8],
-                            dst_value: vec![0x1b, 0x5b, '6' as u8, '~' as u8],
-                        })),
-                    }),
-                    Box::new(TreeNode {
-                        value: vec![';' as u8], // F1
-                        childs: TreeChild::Value(Key::F1(KeyInfo {
-                            raw_value: vec![0x00, ';' as u8],
-                            dst_value: vec![],
-                        })),
-                    }),
-                    Box::new(TreeNode {
-                        value: vec!['<' as u8], // F2
-                        childs: TreeChild::Value(Key::F2(KeyInfo {
-                            raw_value: vec![0x00, '<' as u8],
-                            dst_value: vec![],
-                        })),
-                    }),
-                    Box::new(TreeNode {
-                        value: vec!['=' as u8], // F3
-                        childs: TreeChild::Value(Key::F3(KeyInfo {
-                            raw_value: vec![0x00, '=' as u8],
-                            dst_value: vec![],
-                        })),
-                    }),
-                    Box::new(TreeNode {
-                        value: vec!['>' as u8], // F4
-                        childs: TreeChild::Value(Key::F4(KeyInfo {
-                            raw_value: vec![0x00, '>' as u8],
-                            dst_value: vec![],
-                        })),
-                    }),
-                    Box::new(TreeNode {
-                        value: vec!['?' as u8], // F5
-                        childs: TreeChild::Value(Key::F5(KeyInfo {
-                            raw_value: vec![0x00, '?' as u8],
-                            dst_value: vec![],
-                        })),
-                    }),
-                    Box::new(TreeNode {
-                        value: vec!['@' as u8], // F6
-                        childs: TreeChild::Value(Key::F6(KeyInfo {
-                            raw_value: vec![0x00, '@' as u8],
-                            dst_value: vec![],
-                        })),
-                    }),
-                    Box::new(TreeNode {
-                        value: vec!['A' as u8], // F7
-                        childs: TreeChild::Value(Key::F7(KeyInfo {
-                            raw_value: vec![0x00, 'A' as u8],
-                            dst_value: vec![],
-                        })),
-                    }),
-                    Box::new(TreeNode {
-                        value: vec!['B' as u8], // F8
-                        childs: TreeChild::Value(Key::F8(KeyInfo {
-                            raw_value: vec![0x00, 'B' as u8],
-                            dst_value: vec![],
-                        })),
-                    }),
-                    Box::new(TreeNode {
-                        value: vec!['C' as u8], // F9
-                        childs: TreeChild::Value(Key::F9(KeyInfo {
-                            raw_value: vec![0x00, 'C' as u8],
-                            dst_value: vec![],
-                        })),
-                    }),
-                    Box::new(TreeNode {
-                        value: vec!['D' as u8], // F10
-                        childs: TreeChild::Value(Key::F10(KeyInfo {
-                            raw_value: vec![0x00, 'D' as u8],
-                            dst_value: vec![],
-                        })),
-                    }),
-                    Box::new(TreeNode {
-                        value: vec![0x86], // F12
-                        childs: TreeChild::Value(Key::F12(KeyInfo {
-                            raw_value: vec![0xe0, 0x86],
-                            dst_value: vec![],
-                        })),
-                    }),
-                ]),
-            },
-            #[cfg(not(windows))]
-            key_tree: TreeRoot {
-                value: vec![0x1b],
-                childs: TreeChild::Childs(vec![
-                    Box::new(TreeNode {
-                        value: vec![0x5b],
-                        childs: TreeChild::Childs(vec![
-                            Box::new(TreeNode {
-                                value: vec!['A' as u8], // Up
-                                childs: TreeChild::Value(Key::Up(KeyInfo {
-                                    raw_value: vec![0x1b, 0x5b, 'A' as u8],
-                                    dst_value: vec![0x1b, 0x5b, 'A' as u8],
-                                })),
-                            }),
-                            Box::new(TreeNode {
-                                value: vec!['B' as u8], // Down
-                                childs: TreeChild::Value(Key::Down(KeyInfo {
-                                    raw_value: vec![0x1b, 0x5b, 'B' as u8],
-                                    dst_value: vec![0x1b, 0x5b, 'B' as u8],
-                                })),
-                            }),
-                            Box::new(TreeNode {
-                                value: vec!['C' as u8], // Right
-                                childs: TreeChild::Value(Key::Right(KeyInfo {
-                                    raw_value: vec![0x1b, 0x5b, 'C' as u8],
-                                    dst_value: vec![0x1b, 0x5b, 'C' as u8],
-                                })),
-                            }),
-                            Box::new(TreeNode {
-                                value: vec!['D' as u8], // Left
-                                childs: TreeChild::Value(Key::Left(KeyInfo {
-                                    raw_value: vec![0x1b, 0x5b, 'D' as u8],
-                                    dst_value: vec![0x1b, 0x5b, 'D' as u8],
-                                })),
-                            }),
-                            Box::new(TreeNode {
-                                value: vec!['H' as u8], // Home
-                                childs: TreeChild::Value(Key::Home(KeyInfo {
-                                    raw_value: vec![0x1b, 0x5b, 'H' as u8],
-                                    dst_value: vec![0x1b, 0x5b, 'H' as u8],
-                                })),
-                            }),
-                            Box::new(TreeNode {
-                                value: vec!['F' as u8], // End
-                                childs: TreeChild::Value(Key::End(KeyInfo {
-                                    raw_value: vec![0x1b, 0x5b, 'F' as u8],
-                                    dst_value: vec![0x1b, 0x5b, 'F' as u8],
-                                })),
-                            }),
-                            Box::new(TreeNode {
-                                value: vec!['1' as u8],
-                                childs: TreeChild::Childs(vec![
-                                    Box::new(TreeNode {
-                                        value: vec!['5' as u8],
-                                        childs: TreeChild::Childs(vec![Box::new(TreeNode {
-                                            value: vec!['~' as u8], // F5
-                                            childs: TreeChild::Value(Key::F5(KeyInfo {
-                                                raw_value: vec![
-                                                    0x1b, 0x5b, '1' as u8, '5' as u8, '~' as u8,
-                                                ],
-                                                dst_value: vec![],
-                                            })),
-                                        })]),
-                                    }),
-                                    Box::new(TreeNode {
-                                        value: vec!['7' as u8],
-                                        childs: TreeChild::Childs(vec![Box::new(TreeNode {
-                                            value: vec!['~' as u8], // F6
-                                            childs: TreeChild::Value(Key::F6(KeyInfo {
-                                                raw_value: vec![
-                                                    0x1b, 0x5b, '1' as u8, '7' as u8, '~' as u8,
-                                                ],
-                                                dst_value: vec![],
-                                            })),
-                                        })]),
-                                    }),
-                                    Box::new(TreeNode {
-                                        value: vec!['8' as u8],
-                                        childs: TreeChild::Childs(vec![Box::new(TreeNode {
-                                            value: vec!['~' as u8], // F7
-                                            childs: TreeChild::Value(Key::F7(KeyInfo {
-                                                raw_value: vec![
-                                                    0x1b, 0x5b, '1' as u8, '8' as u8, '~' as u8,
-                                                ],
-                                                dst_value: vec![],
-                                            })),
-                                        })]),
-                                    }),
-                                    Box::new(TreeNode {
-                                        value: vec!['9' as u8],
-                                        childs: TreeChild::Childs(vec![Box::new(TreeNode {
-                                            value: vec!['~' as u8], // F8
-                                            childs: TreeChild::Value(Key::F8(KeyInfo {
-                                                raw_value: vec![
-                                                    0x1b, 0x5b, '1' as u8, '9' as u8, '~' as u8,
-                                                ],
-                                                dst_value: vec![],
-                                            })),
-                                        })]),
-                                    }),
-                                ]),
-                            }),
-                            Box::new(TreeNode {
-                                value: vec!['2' as u8],
-                                childs: TreeChild::Childs(vec![
-                                    Box::new(TreeNode {
-                                        value: vec!['~' as u8], // Insert
-                                        childs: TreeChild::Value(Key::Insert(KeyInfo {
-                                            raw_value: vec![0x1b, 0x5b, '2' as u8, '~' as u8],
-                                            dst_value: vec![0x1b, 0x5b, '2' as u8, '~' as u8],
-                                        })),
-                                    }),
-                                    Box::new(TreeNode {
-                                        value: vec!['0' as u8],
-                                        childs: TreeChild::Childs(vec![Box::new(TreeNode {
-                                            value: vec!['~' as u8], // F9
-                                            childs: TreeChild::Value(Key::F9(KeyInfo {
-                                                raw_value: vec![
-                                                    0x1b, 0x5b, '2' as u8, '0' as u8, '~' as u8,
-                                                ],
-                                                dst_value: vec![],
-                                            })),
-                                        })]),
-                                    }),
-                                    Box::new(TreeNode {
-                                        value: vec!['1' as u8],
-                                        childs: TreeChild::Childs(vec![Box::new(TreeNode {
-                                            value: vec!['~' as u8], // F10
-                                            childs: TreeChild::Value(Key::F10(KeyInfo {
-                                                raw_value: vec![
-                                                    0x1b, 0x5b, '2' as u8, '1' as u8, '~' as u8,
-                                                ],
-                                                dst_value: vec![],
-                                            })),
-                                        })]),
-                                    }),
-                                    Box::new(TreeNode {
-                                        value: vec!['3' as u8],
-                                        childs: TreeChild::Childs(vec![Box::new(TreeNode {
-                                            value: vec!['~' as u8], // F11
-                                            childs: TreeChild::Value(Key::F11(KeyInfo {
-                                                raw_value: vec![
-                                                    0x1b, 0x5b, '2' as u8, '3' as u8, '~' as u8,
-                                                ],
-                                                dst_value: vec![],
-                                            })),
-                                        })]),
-                                    }),
-                                    Box::new(TreeNode {
-                                        value: vec!['4' as u8],
-                                        childs: TreeChild::Childs(vec![Box::new(TreeNode {
-                                            value: vec!['~' as u8], // F12
-                                            childs: TreeChild::Value(Key::F12(KeyInfo {
-                                                raw_value: vec![
-                                                    0x1b, 0x5b, '2' as u8, '4' as u8, '~' as u8,
-                                                ],
-                                                dst_value: vec![],
-                                            })),
-                                        })]),
-                                    }),
-                                ]),
-                            }),
-                            Box::new(TreeNode {
-                                value: vec!['3' as u8],
-                                childs: TreeChild::Childs(vec![Box::new(TreeNode {
-                                    value: vec!['~' as u8], // Delete
-                                    childs: TreeChild::Value(Key::Delete(KeyInfo {
-                                        raw_value: vec![0x1b, 0x5b, '3' as u8, '~' as u8],
-                                        dst_value: vec![0x1b, 0x5b, '3' as u8, '~' as u8],
-                                    })),
-                                })]),
-                            }),
-                        ]),
-                    }),
-                    Box::new(TreeNode {
-                        value: vec![0x4f],
-                        childs: TreeChild::Childs(vec![
-                            Box::new(TreeNode {
-                                value: vec!['P' as u8], // F1
-                                childs: TreeChild::Value(Key::F1(KeyInfo {
-                                    raw_value: vec![0x1b, 0x4f, 'P' as u8],
-                                    dst_value: vec![],
-                                })),
-                            }),
-                            Box::new(TreeNode {
-                                value: vec!['Q' as u8], // F2
-                                childs: TreeChild::Value(Key::F2(KeyInfo {
-                                    raw_value: vec![0x1b, 0x4f, 'Q' as u8],
-                                    dst_value: vec![],
-                                })),
-                            }),
-                            Box::new(TreeNode {
-                                value: vec!['R' as u8], // F3
-                                childs: TreeChild::Value(Key::F3(KeyInfo {
-                                    raw_value: vec![0x1b, 0x4f, 'R' as u8],
-                                    dst_value: vec![],
-                                })),
-                            }),
-                            Box::new(TreeNode {
-                                value: vec!['S' as u8], // F4
-                                childs: TreeChild::Value(Key::F4(KeyInfo {
-                                    raw_value: vec![0x1b, 0x4f, 'S' as u8],
-                                    dst_value: vec![],
-                                })),
-                            }),
-                        ]),
-                    }),
-                ]),
-            },
+            getch: Getch::new(),
+        }
+    }
+
+    fn getch(&self) -> u8 {
+        self.getch.getch().unwrap()
+    }
+
+    pub fn get_input(&self) -> Key<KeyInfo> {
+        let first = self.getch();
+
+        #[cfg(windows)]
+        if first == 0xe0 || first == 0x00 {
+            let second = self.getch();
+            return self.match_windows_key(first, second);
+        }
+
+        #[cfg(not(windows))]
+        if first == 0x1b {
+            return self.match_unix_escape();
+        }
+
+        Key::Other(KeyInfo {
+            raw_value: vec![first],
+            dst_value: vec![first],
+        })
+    }
+
+    #[cfg(windows)]
+    fn match_windows_key(&self, prefix: u8, code: u8) -> Key<KeyInfo> {
+        match (prefix, code) {
+            (0xe0, b'H') => Key::Up(KeyInfo {
+                raw_value: vec![0xe0, b'H'],
+                dst_value: vec![0x1b, 0x5b, b'A'],
+            }),
+            (0xe0, b'P') => Key::Down(KeyInfo {
+                raw_value: vec![0xe0, b'P'],
+                dst_value: vec![0x1b, 0x5b, b'B'],
+            }),
+            (0xe0, b'M') => Key::Right(KeyInfo {
+                raw_value: vec![0xe0, b'M'],
+                dst_value: vec![0x1b, 0x5b, b'C'],
+            }),
+            (0xe0, b'K') => Key::Left(KeyInfo {
+                raw_value: vec![0xe0, b'K'],
+                dst_value: vec![0x1b, 0x5b, b'D'],
+            }),
+            (0xe0, b'G') => Key::Home(KeyInfo {
+                raw_value: vec![0xe0, b'G'],
+                dst_value: vec![0x1b, 0x5b, b'H'],
+            }),
+            (0xe0, b'O') => Key::End(KeyInfo {
+                raw_value: vec![0xe0, b'O'],
+                dst_value: vec![0x1b, 0x5b, b'F'],
+            }),
+            (0xe0, b'R') => Key::Insert(KeyInfo {
+                raw_value: vec![0xe0, b'R'],
+                dst_value: vec![0x1b, 0x5b, b'2', b'~'],
+            }),
+            (0xe0, b'S') => Key::Delete(KeyInfo {
+                raw_value: vec![0xe0, b'S'],
+                dst_value: vec![0x1b, 0x5b, b'3', b'~'],
+            }),
+            (0xe0, b'I') => Key::PageUp(KeyInfo {
+                raw_value: vec![0xe0, b'I'],
+                dst_value: vec![0x1b, 0x5b, b'5', b'~'],
+            }),
+            (0xe0, b'Q') => Key::PageDown(KeyInfo {
+                raw_value: vec![0xe0, b'Q'],
+                dst_value: vec![0x1b, 0x5b, b'6', b'~'],
+            }),
+            // Windows F-keys (0x00 prefix)
+            (0x00, b';') => Key::F1(KeyInfo { raw_value: vec![0x00, b';'], dst_value: vec![] }),
+            (0x00, b'<') => Key::F2(KeyInfo { raw_value: vec![0x00, b'<'], dst_value: vec![] }),
+            (0x00, b'=') => Key::F3(KeyInfo { raw_value: vec![0x00, b'='], dst_value: vec![] }),
+            (0x00, b'>') => Key::F4(KeyInfo { raw_value: vec![0x00, b'>'], dst_value: vec![] }),
+            (0x00, b'?') => Key::F5(KeyInfo { raw_value: vec![0x00, b'?'], dst_value: vec![] }),
+            (0x00, b'@') => Key::F6(KeyInfo { raw_value: vec![0x00, b'@'], dst_value: vec![] }),
+            (0x00, b'A') => Key::F7(KeyInfo { raw_value: vec![0x00, b'A'], dst_value: vec![] }),
+            (0x00, b'B') => Key::F8(KeyInfo { raw_value: vec![0x00, b'B'], dst_value: vec![] }),
+            (0x00, b'C') => Key::F9(KeyInfo { raw_value: vec![0x00, b'C'], dst_value: vec![] }),
+            (0x00, b'D') => Key::F10(KeyInfo { raw_value: vec![0x00, b'D'], dst_value: vec![] }),
+            // F12 (0xe0, 0x86)
+            (0xe0, 0x86) => Key::F12(KeyInfo { raw_value: vec![0xe0, 0x86], dst_value: vec![] }),
+            _ => Key::Other(KeyInfo {
+                raw_value: vec![prefix, code],
+                dst_value: vec![prefix, code],
+            }),
+        }
+    }
+
+    #[cfg(not(windows))]
+    fn match_unix_escape(&self) -> Key<KeyInfo> {
+        let second = self.getch();
+
+        if second == 0x5b {
+            // CSI 序列: ESC [
+            let third = self.getch();
+            match third {
+                b'A' => Key::Up(KeyInfo {
+                    raw_value: vec![0x1b, 0x5b, b'A'],
+                    dst_value: vec![0x1b, 0x5b, b'A'],
+                }),
+                b'B' => Key::Down(KeyInfo {
+                    raw_value: vec![0x1b, 0x5b, b'B'],
+                    dst_value: vec![0x1b, 0x5b, b'B'],
+                }),
+                b'C' => Key::Right(KeyInfo {
+                    raw_value: vec![0x1b, 0x5b, b'C'],
+                    dst_value: vec![0x1b, 0x5b, b'C'],
+                }),
+                b'D' => Key::Left(KeyInfo {
+                    raw_value: vec![0x1b, 0x5b, b'D'],
+                    dst_value: vec![0x1b, 0x5b, b'D'],
+                }),
+                b'H' => Key::Home(KeyInfo {
+                    raw_value: vec![0x1b, 0x5b, b'H'],
+                    dst_value: vec![0x1b, 0x5b, b'H'],
+                }),
+                b'F' => Key::End(KeyInfo {
+                    raw_value: vec![0x1b, 0x5b, b'F'],
+                    dst_value: vec![0x1b, 0x5b, b'F'],
+                }),
+                b'1' => {
+                    let fourth = self.getch();
+                    match fourth {
+                        b'5' => self.expect_terminator_and_key(
+                            &[0x1b, 0x5b, b'1', b'5'],
+                            Key::F5,
+                        ),
+                        b'7' => self.expect_terminator_and_key(
+                            &[0x1b, 0x5b, b'1', b'7'],
+                            Key::F6,
+                        ),
+                        b'8' => self.expect_terminator_and_key(
+                            &[0x1b, 0x5b, b'1', b'8'],
+                            Key::F7,
+                        ),
+                        b'9' => self.expect_terminator_and_key(
+                            &[0x1b, 0x5b, b'1', b'9'],
+                            Key::F8,
+                        ),
+                        _ => Key::Other(KeyInfo {
+                            raw_value: vec![0x1b, 0x5b, b'1', fourth],
+                            dst_value: vec![0x1b, 0x5b, b'1', fourth],
+                        }),
+                    }
+                }
+                b'2' => {
+                    let fourth = self.getch();
+                    match fourth {
+                        b'~' => Key::Insert(KeyInfo {
+                            raw_value: vec![0x1b, 0x5b, b'2', b'~'],
+                            dst_value: vec![0x1b, 0x5b, b'2', b'~'],
+                        }),
+                        b'0' => self.expect_terminator_and_key(
+                            &[0x1b, 0x5b, b'2', b'0'],
+                            Key::F9,
+                        ),
+                        b'1' => self.expect_terminator_and_key(
+                            &[0x1b, 0x5b, b'2', b'1'],
+                            Key::F10,
+                        ),
+                        b'3' => self.expect_terminator_and_key(
+                            &[0x1b, 0x5b, b'2', b'3'],
+                            Key::F11,
+                        ),
+                        b'4' => self.expect_terminator_and_key(
+                            &[0x1b, 0x5b, b'2', b'4'],
+                            Key::F12,
+                        ),
+                        _ => Key::Other(KeyInfo {
+                            raw_value: vec![0x1b, 0x5b, b'2', fourth],
+                            dst_value: vec![0x1b, 0x5b, b'2', fourth],
+                        }),
+                    }
+                }
+                b'3' => {
+                    let fourth = self.getch();
+                    if fourth == b'~' {
+                        Key::Delete(KeyInfo {
+                            raw_value: vec![0x1b, 0x5b, b'3', b'~'],
+                            dst_value: vec![0x1b, 0x5b, b'3', b'~'],
+                        })
+                    } else {
+                        Key::Other(KeyInfo {
+                            raw_value: vec![0x1b, 0x5b, b'3', fourth],
+                            dst_value: vec![0x1b, 0x5b, b'3', fourth],
+                        })
+                    }
+                }
+                b'5' => {
+                    let fourth = self.getch();
+                    if fourth == b'~' {
+                        Key::PageUp(KeyInfo {
+                            raw_value: vec![0x1b, 0x5b, b'5', b'~'],
+                            dst_value: vec![0x1b, 0x5b, b'5', b'~'],
+                        })
+                    } else {
+                        Key::Other(KeyInfo {
+                            raw_value: vec![0x1b, 0x5b, b'5', fourth],
+                            dst_value: vec![0x1b, 0x5b, b'5', fourth],
+                        })
+                    }
+                }
+                b'6' => {
+                    let fourth = self.getch();
+                    if fourth == b'~' {
+                        Key::PageDown(KeyInfo {
+                            raw_value: vec![0x1b, 0x5b, b'6', b'~'],
+                            dst_value: vec![0x1b, 0x5b, b'6', b'~'],
+                        })
+                    } else {
+                        Key::Other(KeyInfo {
+                            raw_value: vec![0x1b, 0x5b, b'6', fourth],
+                            dst_value: vec![0x1b, 0x5b, b'6', fourth],
+                        })
+                    }
+                }
+                _ => Key::Other(KeyInfo {
+                    raw_value: vec![0x1b, 0x5b, third],
+                    dst_value: vec![0x1b, 0x5b, third],
+                }),
+            }
+        } else if second == 0x4f {
+            // SS3 序列: ESC O
+            let third = self.getch();
+            match third {
+                b'P' => Key::F1(KeyInfo { raw_value: vec![0x1b, 0x4f, b'P'], dst_value: vec![] }),
+                b'Q' => Key::F2(KeyInfo { raw_value: vec![0x1b, 0x4f, b'Q'], dst_value: vec![] }),
+                b'R' => Key::F3(KeyInfo { raw_value: vec![0x1b, 0x4f, b'R'], dst_value: vec![] }),
+                b'S' => Key::F4(KeyInfo { raw_value: vec![0x1b, 0x4f, b'S'], dst_value: vec![] }),
+                _ => Key::Other(KeyInfo {
+                    raw_value: vec![0x1b, 0x4f, third],
+                    dst_value: vec![0x1b, 0x4f, third],
+                }),
+            }
+        } else {
+            Key::Other(KeyInfo {
+                raw_value: vec![0x1b, second],
+                dst_value: vec![0x1b, second],
+            })
+        }
+    }
+
+    /// Unix 下读取期望的 '~' 终止符，然后返回指定的 F-key
+    #[cfg(not(windows))]
+    fn expect_terminator_and_key(
+        &self,
+        prefix: &[u8],
+        key_fn: fn(KeyInfo) -> Key<KeyInfo>,
+    ) -> Key<KeyInfo> {
+        let terminator = self.getch();
+        let mut raw = prefix.to_vec();
+        raw.push(terminator);
+        if terminator == b'~' {
+            key_fn(KeyInfo { raw_value: raw, dst_value: vec![] })
+        } else {
+            Key::Other(KeyInfo {
+                raw_value: raw.clone(),
+                dst_value: raw,
+            })
         }
     }
 }
