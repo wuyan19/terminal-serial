@@ -1,0 +1,674 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.3",
+  "version": 1,
+  "serialNumber": "urn:uuid:7cafbf0f-c70c-471f-a8cc-cc05eb39db9e",
+  "metadata": {
+    "timestamp": "2024-08-28T09:17:22.977236700Z",
+    "tools": [
+      {
+        "vendor": "CycloneDX",
+        "name": "cargo-cyclonedx",
+        "version": "0.5.5"
+      }
+    ],
+    "component": {
+      "type": "application",
+      "bom-ref": "path+file:///D:/Development/rust/terminal-serial#0.1.1",
+      "name": "terminal-serial",
+      "version": "0.1.1",
+      "scope": "required",
+      "purl": "pkg:cargo/terminal-serial@0.1.1?download_url=file://.",
+      "components": [
+        {
+          "type": "library",
+          "bom-ref": "path+file:///D:/Development/rust/terminal-serial#0.1.1 bin-target-0",
+          "name": "terminal_serial",
+          "version": "0.1.1",
+          "purl": "pkg:cargo/terminal-serial@0.1.1?download_url=file://.#src/lib.rs"
+        },
+        {
+          "type": "application",
+          "bom-ref": "path+file:///D:/Development/rust/terminal-serial#0.1.1 bin-target-1",
+          "name": "terminal-serial",
+          "version": "0.1.1",
+          "purl": "pkg:cargo/terminal-serial@0.1.1?download_url=file://.#src/main.rs"
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#atty@0.2.14",
+      "name": "atty",
+      "version": "0.2.14",
+      "description": "A simple interface for querying atty",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "d9b39be18770d11421cdb1b9947a45dd3f37e93092cbf377614828a319d5fee8"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:cargo/atty@0.2.14",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "http://softprops.github.io/atty"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/softprops/atty"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/softprops/atty"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#bitflags@1.3.2",
+      "name": "bitflags",
+      "version": "1.3.2",
+      "description": "A macro to generate structures which behave like bitflags. ",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/bitflags@1.3.2",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/bitflags"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/bitflags/bitflags"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/bitflags/bitflags"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#cfg-if@1.0.0",
+      "name": "cfg-if",
+      "version": "1.0.0",
+      "description": "A macro to ergonomically define an item depending on a large number of #[cfg] parameters. Structured like an if-else chain, the first matching branch is the item that gets emitted. ",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/cfg-if@1.0.0",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/cfg-if"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/alexcrichton/cfg-if"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/alexcrichton/cfg-if"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#clap@2.34.0",
+      "name": "clap",
+      "version": "2.34.0",
+      "description": "A simple to use, efficient, and full-featured Command Line Argument Parser ",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "a0610544180c38b88101fecf2dd634b174a62eef6946f84dfc6a7127512b381c"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:cargo/clap@2.34.0",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/clap/"
+        },
+        {
+          "type": "website",
+          "url": "https://clap.rs/"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/clap-rs/clap"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#encoding_rs@0.8.32",
+      "name": "encoding_rs",
+      "version": "0.8.32",
+      "description": "A Gecko-oriented implementation of the Encoding Standard",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "071a31f4ee85403370b58aca746f01041ede6f0da2730960ad001edc2b71b394"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "(Apache-2.0 OR MIT) AND BSD-3-Clause"
+        }
+      ],
+      "purl": "pkg:cargo/encoding_rs@0.8.32",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/encoding_rs/"
+        },
+        {
+          "type": "website",
+          "url": "https://docs.rs/encoding_rs/"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/hsivonen/encoding_rs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#libc@0.2.124",
+      "name": "libc",
+      "version": "0.2.124",
+      "description": "Raw FFI bindings to platform libraries like libc. ",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "21a41fed9d98f27ab1c6d161da622a4fa35e8a54a8adc24bbf3ddd0ef70b0e50"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/libc@0.2.124",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/libc/"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/rust-lang/libc"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/rust-lang/libc"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#serial-core@0.4.0",
+      "name": "serial-core",
+      "version": "0.4.0",
+      "description": "Rust abstractions for serial ports.",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "3f46209b345401737ae2125fe5b19a77acce90cd53e1658cda928e4fe9a64581"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:cargo/serial-core@0.4.0",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://dcuddeback.github.io/serial-rs/serial-core/"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/dcuddeback/serial-rs"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dcuddeback/serial-rs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#serial-windows@0.4.0",
+      "name": "serial-windows",
+      "version": "0.4.0",
+      "description": "Serial port implementation for Windows.",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "15c6d3b776267a75d31bbdfd5d36c0ca051251caafc285827052bc53bcdc8162"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:cargo/serial-windows@0.4.0",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://dcuddeback.github.io/serial-rs/serial-windows/"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/dcuddeback/serial-rs"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dcuddeback/serial-rs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#serial@0.4.0",
+      "name": "serial",
+      "version": "0.4.0",
+      "description": "Rust library for accessing serial ports.",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "a1237a96570fc377c13baa1b88c7589ab66edced652e43ffb17088f003db3e86"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:cargo/serial@0.4.0",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://dcuddeback.github.io/serial-rs/serial/"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/dcuddeback/serial-rs"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dcuddeback/serial-rs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#strsim@0.8.0",
+      "name": "strsim",
+      "version": "0.8.0",
+      "description": "Implementations of string similarity metrics. Includes Hamming, Levenshtein, OSA, Damerau-Levenshtein, Jaro, and Jaro-Winkler. ",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "8ea5119cdb4c55b55d432abb513a0429384878c15dde60cc77b1c99de1a95a6a"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:cargo/strsim@0.8.0",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/strsim/"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/dguo/strsim-rs"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/dguo/strsim-rs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#textwrap@0.11.0",
+      "name": "textwrap",
+      "version": "0.11.0",
+      "description": "Textwrap is a small library for word wrapping, indenting, and dedenting strings.  You can use it to format strings (such as help and error messages) for display in commandline applications. It is designed to be efficient and handle Unicode characters correctly. ",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "d326610f408c7a4eb6f51c37c330e496b08506c9457c9d34287ecc38809fb060"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:cargo/textwrap@0.11.0",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/textwrap/"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/mgeisler/textwrap"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#unicode-width@0.1.9",
+      "name": "unicode-width",
+      "version": "0.1.9",
+      "description": "Determine displayed width of `char` and `str` types according to Unicode Standard Annex #11 rules. ",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "3ed742d4ea2bd1176e236172c8429aaf54486e7ac098db29ffe6529e0ce50973"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/unicode-width@0.1.9",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://unicode-rs.github.io/unicode-width"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/unicode-rs/unicode-width"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/unicode-rs/unicode-width"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#vec_map@0.8.2",
+      "name": "vec_map",
+      "version": "0.8.2",
+      "description": "A simple map based on a vector for small integer keys",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "f1bddf1187be692e79c5ffeab891132dfb0f236ed36a43c7ed39f1165ee20191"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/vec_map@0.8.2",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://contain-rs.github.io/vec-map/vec_map"
+        },
+        {
+          "type": "website",
+          "url": "https://github.com/contain-rs/vec-map"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/contain-rs/vec-map"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#winapi@0.3.9",
+      "name": "winapi",
+      "version": "0.3.9",
+      "description": "Raw FFI bindings for all of Windows API.",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "5c839a674fcd7a98952e593242ea400abe93992746761e38641405d28b00f419"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/winapi@0.3.9",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/winapi/"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/retep998/winapi-rs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#winreg@0.10.1",
+      "name": "winreg",
+      "version": "0.10.1",
+      "description": "Rust bindings to MS Windows Registry API",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "80d0f4e272c85def139476380b12f9ac60926689dd2e01d4923222f40580869d"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:cargo/winreg@0.10.1",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "https://docs.rs/winreg"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/gentoo90/winreg-rs"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "registry+https://github.com/rust-lang/crates.io-index#yaml-rust@0.3.5",
+      "name": "yaml-rust",
+      "version": "0.3.5",
+      "description": "The missing YAML 1.2 parser for rust",
+      "scope": "required",
+      "hashes": [
+        {
+          "alg": "SHA-256",
+          "content": "e66366e18dc58b46801afbf2ca7661a9f59cc8c5962c29892b6039b4f86fa992"
+        }
+      ],
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "purl": "pkg:cargo/yaml-rust@0.3.5",
+      "externalReferences": [
+        {
+          "type": "documentation",
+          "url": "http://chyh1990.github.io/yaml-rust/doc/yaml_rust/"
+        },
+        {
+          "type": "website",
+          "url": "http://chyh1990.github.io/yaml-rust/"
+        },
+        {
+          "type": "vcs",
+          "url": "https://github.com/chyh1990/yaml-rust"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "path+file:///D:/Development/rust/terminal-serial#0.1.1",
+      "dependsOn": [
+        "registry+https://github.com/rust-lang/crates.io-index#clap@2.34.0",
+        "registry+https://github.com/rust-lang/crates.io-index#encoding_rs@0.8.32",
+        "registry+https://github.com/rust-lang/crates.io-index#libc@0.2.124",
+        "registry+https://github.com/rust-lang/crates.io-index#serial@0.4.0",
+        "registry+https://github.com/rust-lang/crates.io-index#winreg@0.10.1"
+      ]
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#atty@0.2.14",
+      "dependsOn": [
+        "registry+https://github.com/rust-lang/crates.io-index#winapi@0.3.9"
+      ]
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#bitflags@1.3.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#cfg-if@1.0.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#clap@2.34.0",
+      "dependsOn": [
+        "registry+https://github.com/rust-lang/crates.io-index#atty@0.2.14",
+        "registry+https://github.com/rust-lang/crates.io-index#bitflags@1.3.2",
+        "registry+https://github.com/rust-lang/crates.io-index#strsim@0.8.0",
+        "registry+https://github.com/rust-lang/crates.io-index#textwrap@0.11.0",
+        "registry+https://github.com/rust-lang/crates.io-index#unicode-width@0.1.9",
+        "registry+https://github.com/rust-lang/crates.io-index#vec_map@0.8.2",
+        "registry+https://github.com/rust-lang/crates.io-index#yaml-rust@0.3.5"
+      ]
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#encoding_rs@0.8.32",
+      "dependsOn": [
+        "registry+https://github.com/rust-lang/crates.io-index#cfg-if@1.0.0"
+      ]
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#libc@0.2.124",
+      "dependsOn": []
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#serial-core@0.4.0",
+      "dependsOn": [
+        "registry+https://github.com/rust-lang/crates.io-index#libc@0.2.124"
+      ]
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#serial-windows@0.4.0",
+      "dependsOn": [
+        "registry+https://github.com/rust-lang/crates.io-index#libc@0.2.124",
+        "registry+https://github.com/rust-lang/crates.io-index#serial-core@0.4.0"
+      ]
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#serial@0.4.0",
+      "dependsOn": [
+        "registry+https://github.com/rust-lang/crates.io-index#serial-core@0.4.0",
+        "registry+https://github.com/rust-lang/crates.io-index#serial-windows@0.4.0"
+      ]
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#strsim@0.8.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#textwrap@0.11.0",
+      "dependsOn": [
+        "registry+https://github.com/rust-lang/crates.io-index#unicode-width@0.1.9"
+      ]
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#unicode-width@0.1.9",
+      "dependsOn": []
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#vec_map@0.8.2",
+      "dependsOn": []
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#winapi@0.3.9",
+      "dependsOn": []
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#winreg@0.10.1",
+      "dependsOn": [
+        "registry+https://github.com/rust-lang/crates.io-index#winapi@0.3.9"
+      ]
+    },
+    {
+      "ref": "registry+https://github.com/rust-lang/crates.io-index#yaml-rust@0.3.5",
+      "dependsOn": []
+    }
+  ]
+}

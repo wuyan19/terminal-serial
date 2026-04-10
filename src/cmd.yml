@@ -45,3 +45,19 @@ args:
         long: list
         help: List serial ports
         conflicts_with: ["port", "baudrate", "parity", "datasize", "stopbits"]
+    - server:
+        short: S
+        long: server
+        help: Enable MCP server mode
+    - mcp-port:
+        short: P
+        long: mcp-port
+        value_name: PORT
+        help: "MCP HTTP server port, 8765 as default"
+        takes_value: true
+    - mcp-host:
+        short: H
+        long: mcp-host
+        value_name: HOST
+        help: "MCP HTTP server bind address, 0.0.0.0 as default"
+        takes_value: true

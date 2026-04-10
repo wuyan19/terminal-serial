@@ -1,0 +1,457 @@
+<?xml version="1.0" encoding="utf-8"?>
+<bom xmlns="http://cyclonedx.org/schema/bom/1.3" serialNumber="urn:uuid:f18688d7-b206-4fb3-8017-70ca17148bcc" version="1">
+  <metadata>
+    <timestamp>2024-08-28T09:15:24.531193000Z</timestamp>
+    <tools>
+      <tool>
+        <vendor>CycloneDX</vendor>
+        <name>cargo-cyclonedx</name>
+        <version>0.5.5</version>
+      </tool>
+    </tools>
+    <component type="application" bom-ref="path+file:///D:/Development/rust/terminal-serial#0.1.1">
+      <name>terminal-serial</name>
+      <version>0.1.1</version>
+      <scope>required</scope>
+      <purl>pkg:cargo/terminal-serial@0.1.1?download_url=file://.</purl>
+      <components>
+        <component type="library" bom-ref="path+file:///D:/Development/rust/terminal-serial#0.1.1 bin-target-0">
+          <name>terminal_serial</name>
+          <version>0.1.1</version>
+          <purl>pkg:cargo/terminal-serial@0.1.1?download_url=file://.#src/lib.rs</purl>
+        </component>
+        <component type="application" bom-ref="path+file:///D:/Development/rust/terminal-serial#0.1.1 bin-target-1">
+          <name>terminal-serial</name>
+          <version>0.1.1</version>
+          <purl>pkg:cargo/terminal-serial@0.1.1?download_url=file://.#src/main.rs</purl>
+        </component>
+      </components>
+    </component>
+  </metadata>
+  <components>
+    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#atty@0.2.14">
+      <name>atty</name>
+      <version>0.2.14</version>
+      <description>A simple interface for querying atty</description>
+      <scope>required</scope>
+      <hashes>
+        <hash alg="SHA-256">d9b39be18770d11421cdb1b9947a45dd3f37e93092cbf377614828a319d5fee8</hash>
+      </hashes>
+      <licenses>
+        <expression>MIT</expression>
+      </licenses>
+      <purl>pkg:cargo/atty@0.2.14</purl>
+      <externalReferences>
+        <reference type="documentation">
+          <url>http://softprops.github.io/atty</url>
+        </reference>
+        <reference type="website">
+          <url>https://github.com/softprops/atty</url>
+        </reference>
+        <reference type="vcs">
+          <url>https://github.com/softprops/atty</url>
+        </reference>
+      </externalReferences>
+    </component>
+    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#bitflags@1.3.2">
+      <name>bitflags</name>
+      <version>1.3.2</version>
+      <description>A macro to generate structures which behave like bitflags. </description>
+      <scope>required</scope>
+      <hashes>
+        <hash alg="SHA-256">bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a</hash>
+      </hashes>
+      <licenses>
+        <expression>MIT OR Apache-2.0</expression>
+      </licenses>
+      <purl>pkg:cargo/bitflags@1.3.2</purl>
+      <externalReferences>
+        <reference type="documentation">
+          <url>https://docs.rs/bitflags</url>
+        </reference>
+        <reference type="website">
+          <url>https://github.com/bitflags/bitflags</url>
+        </reference>
+        <reference type="vcs">
+          <url>https://github.com/bitflags/bitflags</url>
+        </reference>
+      </externalReferences>
+    </component>
+    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#cfg-if@1.0.0">
+      <name>cfg-if</name>
+      <version>1.0.0</version>
+      <description>A macro to ergonomically define an item depending on a large number of #[cfg] parameters. Structured like an if-else chain, the first matching branch is the item that gets emitted. </description>
+      <scope>required</scope>
+      <hashes>
+        <hash alg="SHA-256">baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd</hash>
+      </hashes>
+      <licenses>
+        <expression>MIT OR Apache-2.0</expression>
+      </licenses>
+      <purl>pkg:cargo/cfg-if@1.0.0</purl>
+      <externalReferences>
+        <reference type="documentation">
+          <url>https://docs.rs/cfg-if</url>
+        </reference>
+        <reference type="website">
+          <url>https://github.com/alexcrichton/cfg-if</url>
+        </reference>
+        <reference type="vcs">
+          <url>https://github.com/alexcrichton/cfg-if</url>
+        </reference>
+      </externalReferences>
+    </component>
+    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#clap@2.34.0">
+      <name>clap</name>
+      <version>2.34.0</version>
+      <description>A simple to use, efficient, and full-featured Command Line Argument Parser </description>
+      <scope>required</scope>
+      <hashes>
+        <hash alg="SHA-256">a0610544180c38b88101fecf2dd634b174a62eef6946f84dfc6a7127512b381c</hash>
+      </hashes>
+      <licenses>
+        <expression>MIT</expression>
+      </licenses>
+      <purl>pkg:cargo/clap@2.34.0</purl>
+      <externalReferences>
+        <reference type="documentation">
+          <url>https://docs.rs/clap/</url>
+        </reference>
+        <reference type="website">
+          <url>https://clap.rs/</url>
+        </reference>
+        <reference type="vcs">
+          <url>https://github.com/clap-rs/clap</url>
+        </reference>
+      </externalReferences>
+    </component>
+    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#encoding_rs@0.8.32">
+      <name>encoding_rs</name>
+      <version>0.8.32</version>
+      <description>A Gecko-oriented implementation of the Encoding Standard</description>
+      <scope>required</scope>
+      <hashes>
+        <hash alg="SHA-256">071a31f4ee85403370b58aca746f01041ede6f0da2730960ad001edc2b71b394</hash>
+      </hashes>
+      <licenses>
+        <expression>(Apache-2.0 OR MIT) AND BSD-3-Clause</expression>
+      </licenses>
+      <purl>pkg:cargo/encoding_rs@0.8.32</purl>
+      <externalReferences>
+        <reference type="documentation">
+          <url>https://docs.rs/encoding_rs/</url>
+        </reference>
+        <reference type="website">
+          <url>https://docs.rs/encoding_rs/</url>
+        </reference>
+        <reference type="vcs">
+          <url>https://github.com/hsivonen/encoding_rs</url>
+        </reference>
+      </externalReferences>
+    </component>
+    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#libc@0.2.124">
+      <name>libc</name>
+      <version>0.2.124</version>
+      <description>Raw FFI bindings to platform libraries like libc. </description>
+      <scope>required</scope>
+      <hashes>
+        <hash alg="SHA-256">21a41fed9d98f27ab1c6d161da622a4fa35e8a54a8adc24bbf3ddd0ef70b0e50</hash>
+      </hashes>
+      <licenses>
+        <expression>MIT OR Apache-2.0</expression>
+      </licenses>
+      <purl>pkg:cargo/libc@0.2.124</purl>
+      <externalReferences>
+        <reference type="documentation">
+          <url>https://docs.rs/libc/</url>
+        </reference>
+        <reference type="website">
+          <url>https://github.com/rust-lang/libc</url>
+        </reference>
+        <reference type="vcs">
+          <url>https://github.com/rust-lang/libc</url>
+        </reference>
+      </externalReferences>
+    </component>
+    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#serial-core@0.4.0">
+      <name>serial-core</name>
+      <version>0.4.0</version>
+      <description>Rust abstractions for serial ports.</description>
+      <scope>required</scope>
+      <hashes>
+        <hash alg="SHA-256">3f46209b345401737ae2125fe5b19a77acce90cd53e1658cda928e4fe9a64581</hash>
+      </hashes>
+      <licenses>
+        <expression>MIT</expression>
+      </licenses>
+      <purl>pkg:cargo/serial-core@0.4.0</purl>
+      <externalReferences>
+        <reference type="documentation">
+          <url>https://dcuddeback.github.io/serial-rs/serial-core/</url>
+        </reference>
+        <reference type="website">
+          <url>https://github.com/dcuddeback/serial-rs</url>
+        </reference>
+        <reference type="vcs">
+          <url>https://github.com/dcuddeback/serial-rs</url>
+        </reference>
+      </externalReferences>
+    </component>
+    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#serial-windows@0.4.0">
+      <name>serial-windows</name>
+      <version>0.4.0</version>
+      <description>Serial port implementation for Windows.</description>
+      <scope>required</scope>
+      <hashes>
+        <hash alg="SHA-256">15c6d3b776267a75d31bbdfd5d36c0ca051251caafc285827052bc53bcdc8162</hash>
+      </hashes>
+      <licenses>
+        <expression>MIT</expression>
+      </licenses>
+      <purl>pkg:cargo/serial-windows@0.4.0</purl>
+      <externalReferences>
+        <reference type="documentation">
+          <url>https://dcuddeback.github.io/serial-rs/serial-windows/</url>
+        </reference>
+        <reference type="website">
+          <url>https://github.com/dcuddeback/serial-rs</url>
+        </reference>
+        <reference type="vcs">
+          <url>https://github.com/dcuddeback/serial-rs</url>
+        </reference>
+      </externalReferences>
+    </component>
+    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#serial@0.4.0">
+      <name>serial</name>
+      <version>0.4.0</version>
+      <description>Rust library for accessing serial ports.</description>
+      <scope>required</scope>
+      <hashes>
+        <hash alg="SHA-256">a1237a96570fc377c13baa1b88c7589ab66edced652e43ffb17088f003db3e86</hash>
+      </hashes>
+      <licenses>
+        <expression>MIT</expression>
+      </licenses>
+      <purl>pkg:cargo/serial@0.4.0</purl>
+      <externalReferences>
+        <reference type="documentation">
+          <url>https://dcuddeback.github.io/serial-rs/serial/</url>
+        </reference>
+        <reference type="website">
+          <url>https://github.com/dcuddeback/serial-rs</url>
+        </reference>
+        <reference type="vcs">
+          <url>https://github.com/dcuddeback/serial-rs</url>
+        </reference>
+      </externalReferences>
+    </component>
+    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#strsim@0.8.0">
+      <name>strsim</name>
+      <version>0.8.0</version>
+      <description>Implementations of string similarity metrics. Includes Hamming, Levenshtein, OSA, Damerau-Levenshtein, Jaro, and Jaro-Winkler. </description>
+      <scope>required</scope>
+      <hashes>
+        <hash alg="SHA-256">8ea5119cdb4c55b55d432abb513a0429384878c15dde60cc77b1c99de1a95a6a</hash>
+      </hashes>
+      <licenses>
+        <expression>MIT</expression>
+      </licenses>
+      <purl>pkg:cargo/strsim@0.8.0</purl>
+      <externalReferences>
+        <reference type="documentation">
+          <url>https://docs.rs/strsim/</url>
+        </reference>
+        <reference type="website">
+          <url>https://github.com/dguo/strsim-rs</url>
+        </reference>
+        <reference type="vcs">
+          <url>https://github.com/dguo/strsim-rs</url>
+        </reference>
+      </externalReferences>
+    </component>
+    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#textwrap@0.11.0">
+      <name>textwrap</name>
+      <version>0.11.0</version>
+      <description>Textwrap is a small library for word wrapping, indenting, and dedenting strings.  You can use it to format strings (such as help and error messages) for display in commandline applications. It is designed to be efficient and handle Unicode characters correctly. </description>
+      <scope>required</scope>
+      <hashes>
+        <hash alg="SHA-256">d326610f408c7a4eb6f51c37c330e496b08506c9457c9d34287ecc38809fb060</hash>
+      </hashes>
+      <licenses>
+        <expression>MIT</expression>
+      </licenses>
+      <purl>pkg:cargo/textwrap@0.11.0</purl>
+      <externalReferences>
+        <reference type="documentation">
+          <url>https://docs.rs/textwrap/</url>
+        </reference>
+        <reference type="vcs">
+          <url>https://github.com/mgeisler/textwrap</url>
+        </reference>
+      </externalReferences>
+    </component>
+    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#unicode-width@0.1.9">
+      <name>unicode-width</name>
+      <version>0.1.9</version>
+      <description>Determine displayed width of `char` and `str` types according to Unicode Standard Annex #11 rules. </description>
+      <scope>required</scope>
+      <hashes>
+        <hash alg="SHA-256">3ed742d4ea2bd1176e236172c8429aaf54486e7ac098db29ffe6529e0ce50973</hash>
+      </hashes>
+      <licenses>
+        <expression>MIT OR Apache-2.0</expression>
+      </licenses>
+      <purl>pkg:cargo/unicode-width@0.1.9</purl>
+      <externalReferences>
+        <reference type="documentation">
+          <url>https://unicode-rs.github.io/unicode-width</url>
+        </reference>
+        <reference type="website">
+          <url>https://github.com/unicode-rs/unicode-width</url>
+        </reference>
+        <reference type="vcs">
+          <url>https://github.com/unicode-rs/unicode-width</url>
+        </reference>
+      </externalReferences>
+    </component>
+    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#vec_map@0.8.2">
+      <name>vec_map</name>
+      <version>0.8.2</version>
+      <description>A simple map based on a vector for small integer keys</description>
+      <scope>required</scope>
+      <hashes>
+        <hash alg="SHA-256">f1bddf1187be692e79c5ffeab891132dfb0f236ed36a43c7ed39f1165ee20191</hash>
+      </hashes>
+      <licenses>
+        <expression>MIT OR Apache-2.0</expression>
+      </licenses>
+      <purl>pkg:cargo/vec_map@0.8.2</purl>
+      <externalReferences>
+        <reference type="documentation">
+          <url>https://contain-rs.github.io/vec-map/vec_map</url>
+        </reference>
+        <reference type="website">
+          <url>https://github.com/contain-rs/vec-map</url>
+        </reference>
+        <reference type="vcs">
+          <url>https://github.com/contain-rs/vec-map</url>
+        </reference>
+      </externalReferences>
+    </component>
+    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#winapi@0.3.9">
+      <name>winapi</name>
+      <version>0.3.9</version>
+      <description>Raw FFI bindings for all of Windows API.</description>
+      <scope>required</scope>
+      <hashes>
+        <hash alg="SHA-256">5c839a674fcd7a98952e593242ea400abe93992746761e38641405d28b00f419</hash>
+      </hashes>
+      <licenses>
+        <expression>MIT OR Apache-2.0</expression>
+      </licenses>
+      <purl>pkg:cargo/winapi@0.3.9</purl>
+      <externalReferences>
+        <reference type="documentation">
+          <url>https://docs.rs/winapi/</url>
+        </reference>
+        <reference type="vcs">
+          <url>https://github.com/retep998/winapi-rs</url>
+        </reference>
+      </externalReferences>
+    </component>
+    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#winreg@0.10.1">
+      <name>winreg</name>
+      <version>0.10.1</version>
+      <description>Rust bindings to MS Windows Registry API</description>
+      <scope>required</scope>
+      <hashes>
+        <hash alg="SHA-256">80d0f4e272c85def139476380b12f9ac60926689dd2e01d4923222f40580869d</hash>
+      </hashes>
+      <licenses>
+        <expression>MIT</expression>
+      </licenses>
+      <purl>pkg:cargo/winreg@0.10.1</purl>
+      <externalReferences>
+        <reference type="documentation">
+          <url>https://docs.rs/winreg</url>
+        </reference>
+        <reference type="vcs">
+          <url>https://github.com/gentoo90/winreg-rs</url>
+        </reference>
+      </externalReferences>
+    </component>
+    <component type="library" bom-ref="registry+https://github.com/rust-lang/crates.io-index#yaml-rust@0.3.5">
+      <name>yaml-rust</name>
+      <version>0.3.5</version>
+      <description>The missing YAML 1.2 parser for rust</description>
+      <scope>required</scope>
+      <hashes>
+        <hash alg="SHA-256">e66366e18dc58b46801afbf2ca7661a9f59cc8c5962c29892b6039b4f86fa992</hash>
+      </hashes>
+      <licenses>
+        <expression>MIT OR Apache-2.0</expression>
+      </licenses>
+      <purl>pkg:cargo/yaml-rust@0.3.5</purl>
+      <externalReferences>
+        <reference type="documentation">
+          <url>http://chyh1990.github.io/yaml-rust/doc/yaml_rust/</url>
+        </reference>
+        <reference type="website">
+          <url>http://chyh1990.github.io/yaml-rust/</url>
+        </reference>
+        <reference type="vcs">
+          <url>https://github.com/chyh1990/yaml-rust</url>
+        </reference>
+      </externalReferences>
+    </component>
+  </components>
+  <dependencies>
+    <dependency ref="path+file:///D:/Development/rust/terminal-serial#0.1.1">
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#clap@2.34.0" />
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#encoding_rs@0.8.32" />
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#libc@0.2.124" />
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#serial@0.4.0" />
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#winreg@0.10.1" />
+    </dependency>
+    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#atty@0.2.14">
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#winapi@0.3.9" />
+    </dependency>
+    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#bitflags@1.3.2" />
+    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#cfg-if@1.0.0" />
+    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#clap@2.34.0">
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#atty@0.2.14" />
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#bitflags@1.3.2" />
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#strsim@0.8.0" />
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#textwrap@0.11.0" />
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#unicode-width@0.1.9" />
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#vec_map@0.8.2" />
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#yaml-rust@0.3.5" />
+    </dependency>
+    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#encoding_rs@0.8.32">
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#cfg-if@1.0.0" />
+    </dependency>
+    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#libc@0.2.124" />
+    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#serial-core@0.4.0">
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#libc@0.2.124" />
+    </dependency>
+    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#serial-windows@0.4.0">
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#libc@0.2.124" />
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#serial-core@0.4.0" />
+    </dependency>
+    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#serial@0.4.0">
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#serial-core@0.4.0" />
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#serial-windows@0.4.0" />
+    </dependency>
+    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#strsim@0.8.0" />
+    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#textwrap@0.11.0">
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#unicode-width@0.1.9" />
+    </dependency>
+    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#unicode-width@0.1.9" />
+    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#vec_map@0.8.2" />
+    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#winapi@0.3.9" />
+    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#winreg@0.10.1">
+      <dependency ref="registry+https://github.com/rust-lang/crates.io-index#winapi@0.3.9" />
+    </dependency>
+    <dependency ref="registry+https://github.com/rust-lang/crates.io-index#yaml-rust@0.3.5" />
+  </dependencies>
+</bom>
