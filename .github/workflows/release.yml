@@ -23,19 +23,19 @@ jobs:
           - platform: macos-latest
             target: aarch64-apple-darwin
             artifact_name: terminal-serial
-            asset_name: terminal-serial-aarch64-apple-darwin
+            asset_name: terminal-serial-aarch64-macos
           - platform: macos-latest
             target: x86_64-apple-darwin
             artifact_name: terminal-serial
-            asset_name: terminal-serial-x86_64-apple-darwin
+            asset_name: terminal-serial-x86_64-macos
           - platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             artifact_name: terminal-serial
-            asset_name: terminal-serial-x86_64-unknown-linux-gnu
+            asset_name: terminal-serial-x86_64-linux
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: terminal-serial.exe
-            asset_name: terminal-serial-x86_64-pc-windows-msvc.exe
+            asset_name: terminal-serial-x86_64-windows.exe
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -52,12 +52,15 @@ jobs:
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
 
+      - name: Rename binary
+        run: cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} target/${{ matrix.target }}/release/${{ matrix.asset_name }}
+
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-          files: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          files: target/${{ matrix.target }}/release/${{ matrix.asset_name }}
           name: terminal-serial ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           draft: true
