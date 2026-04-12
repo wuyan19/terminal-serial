@@ -60,11 +60,27 @@ struct Cli {
 }
 
 fn get_serial_port_list() -> Vec<String> {
-    serialport::available_ports()
+    let mut ports: Vec<String> = serialport::available_ports()
         .unwrap_or_default()
         .into_iter()
         .map(|p| p.port_name)
-        .collect()
+        .filter(|name| {
+            #[cfg(target_os = "macos")]
+            {
+                // macOS: only show cu.* devices, skip tty.* duplicates and Bluetooth
+                name.starts_with("/dev/cu.")
+                    && !name.contains("Bluetooth")
+                    && !name.contains("BLTH")
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                let _ = name;
+                true
+            }
+        })
+        .collect();
+    ports.sort();
+    ports
 }
 
 pub fn cmd_parse() -> AppConfig {
