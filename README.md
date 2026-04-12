@@ -5,10 +5,21 @@ A terminal serial port tool developed in the **Rust** language.
 
 ## Install
 
+### From Source
+
 ```shell
 cd terminal-serial
 cargo install --path .
 ```
+
+### From Release
+
+Download the binary for your platform from the [Releases](https://github.com/wuyan19/terminal-serial/releases) page.
+
+> **macOS Users**: The binary is unsigned. If macOS blocks it with "cannot be opened because it is from an unidentified developer", run:
+> ```shell
+> xattr -d com.apple.quarantine terminal-serial-*
+> ```
 
 ## Instructions
 - **Help**
