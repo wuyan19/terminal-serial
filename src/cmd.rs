@@ -14,47 +14,47 @@ pub struct AppConfig {
     pub mcp_port: u16,
 }
 
-/// 终端串口通信工具
+/// A cross-platform terminal serial port communication tool
 #[derive(Parser, Debug)]
 #[command(name = "terminal-serial", version, about)]
 struct Cli {
-    /// 串口名称
+    /// Serial port name
     #[arg(short = 'p', long)]
     port: Option<String>,
 
-    /// 波特率，默认 115200
+    /// Baud rate
     #[arg(short = 'b', long, default_value_t = 115200)]
     baud_rate: u32,
 
-    /// 校验位：N|O|E，默认 N
+    /// Parity: N|O|E
     #[arg(short = 'a', long)]
     parity: Option<String>,
 
-    /// 数据位：5|6|7|8，默认 8
+    /// Data bits: 5|6|7|8
     #[arg(short = 'd', long)]
     datasize: Option<String>,
 
-    /// 停止位：1|2，默认 1
+    /// Stop bits: 1|2
     #[arg(short = 's', long)]
     stopbits: Option<String>,
 
-    /// 流控：N|S|H，默认 N
+    /// Flow control: N|S|H
     #[arg(short = 'f', long)]
     flowcontrol: Option<String>,
 
-    /// 列出可用串口
+    /// List available serial ports
     #[arg(short = 'l', long)]
     list: bool,
 
-    /// 启用 MCP 服务器模式
+    /// Enable MCP server mode
     #[arg(short = 'S', long)]
     server: bool,
 
-    /// MCP 服务器端口，默认 8765
+    /// MCP server port
     #[arg(short = 'P', long, default_value_t = 8765)]
     mcp_port: u16,
 
-    /// MCP 服务器绑定地址，默认 0.0.0.0
+    /// MCP server bind address
     #[arg(short = 'H', long, default_value = "0.0.0.0")]
     mcp_host: String,
 }
