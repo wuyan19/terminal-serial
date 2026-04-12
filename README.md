@@ -13,24 +13,21 @@ cargo install --path .
 ## Instructions
 - **Help**
 ```shell
-USAGE:
-    terminal-serial.exe [FLAGS] [OPTIONS]
+Usage: terminal-serial.exe [OPTIONS]
 
-FLAGS:
-    -h, --help       Prints help information
-    -l, --list       List serial ports
-    -S, --server     Enable MCP server mode
-    -V, --version    Prints version information
-
-OPTIONS:
-    -b, --baudrate <INTEGER>     Set baud rate, 115200 as default
-    -d, --datasize <5|6|7|8>     Set data size, 8 as default
-    -f, --flowcontrol <N|S|H>    Set flow control, 'N' as default
-    -H, --mcp-host <HOST>        MCP HTTP server bind address, 0.0.0.0 as default
-    -P, --mcp-port <PORT>        MCP HTTP server port, 8765 as default
-    -a, --parity <N|O|E>         Set parity, 'N' as default
-    -p, --port <TEXT>            Serial port name
-    -s, --stopbits <1|2>         Set stop bits, 1 as default
+Options:
+  -p, --port <PORT>                Serial port name
+  -b, --baud-rate <BAUD_RATE>      Baud rate [default: 115200]
+  -a, --parity <PARITY>            Parity: N|O|E
+  -d, --datasize <DATASIZE>        Data bits: 5|6|7|8
+  -s, --stopbits <STOPBITS>        Stop bits: 1|2
+  -f, --flowcontrol <FLOWCONTROL>  Flow control: N|S|H
+  -l, --list                       List available serial ports
+  -S, --server                     Enable MCP server mode
+  -P, --mcp-port <MCP_PORT>        MCP server port [default: 8765]
+  -H, --mcp-host <MCP_HOST>        MCP server bind address [default: 0.0.0.0]
+  -h, --help                       Print help
+  -V, --version                    Print version
 ```
 - **Example**
 ```shell
