@@ -100,9 +100,11 @@ Replace `<host>` with the IP address of the machine running terminal-serial (e.g
 
 | Tool | Description |
 |------|-------------|
-| `serial_send` | Send data to serial port. Supports text/hex format. Auto-appends `\r\n` in text mode. Optionally waits for device response. |
-| `serial_read` | Read data from serial receive buffer. Supports text/hex format. |
 | `serial_status` | Get serial port connection status and configuration. |
+| `serial_send` | Send data to serial port. Supports text/hex format. Auto-appends `\r\n` in text mode. Optionally waits for device response. |
+| `serial_read` | Read data from serial receive buffer (destructive — buffer is cleared after read). Supports text/hex format. |
+| `serial_grep` | Search receive buffer for matching pattern without clearing it. Supports regex in text mode and byte sequences in hex mode. Useful for waiting for specific output. |
+| `serial_clear` | Clear all data in the receive buffer. |
 
 ### Example: AT Command via MCP
 
@@ -111,8 +113,31 @@ Replace `<host>` with the IP address of the machine running terminal-serial (e.g
   "name": "serial_send",
   "arguments": {
     "data": "AT",
-    "wait_response": true,
     "timeout_ms": 2000
+  }
+}
+```
+
+### Example: Wait for Device Ready
+
+```json
+{
+  "name": "serial_grep",
+  "arguments": {
+    "pattern": "Kernel started",
+    "timeout_ms": 5000
+  }
+}
+```
+
+### Example: Send Hex Data
+
+```json
+{
+  "name": "serial_send",
+  "arguments": {
+    "data": "AA55",
+    "format": "hex"
   }
 }
 ```
