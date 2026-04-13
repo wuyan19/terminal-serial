@@ -47,6 +47,8 @@ pub fn handle_request(body: &str, manager: &SerialManager) -> Value {
         }
         "tools/list" => handle_tools_list(),
         "tools/call" => handle_tools_call(&params, manager),
+        "prompts/list" => handle_prompts_list(),
+        "prompts/get" => handle_prompts_get(&params),
         "ping" => json!({}),
         _ => {
             return json!({
@@ -72,6 +74,9 @@ fn handle_initialize(_params: &Value) -> Value {
         "protocolVersion": PROTOCOL_VERSION,
         "capabilities": {
             "tools": {
+                "listChanged": false
+            },
+            "prompts": {
                 "listChanged": false
             }
         },
@@ -176,6 +181,20 @@ fn handle_tools_list() -> Value {
             }
         ]
     })
+}
+
+fn hex_to_bytes(hex: &str) -> Result<Vec<u8>, String> {
+    let hex = hex.replace(" ", "").replace("0x", "").replace(",", "");
+    if hex.len() % 2 != 0 {
+        return Err("Hex string must have even length".to_string());
+    }
+    (0..hex.len())
+        .step_by(2)
+        .map(|i| {
+            u8::from_str_radix(&hex[i..i + 2], 16)
+                .map_err(|e| format!("Invalid hex at position {}: {}", i, e))
+        })
+        .collect()
 }
 
 fn handle_tools_call(params: &Value, manager: &SerialManager) -> Value {
@@ -331,20 +350,6 @@ fn tool_serial_status(manager: &SerialManager) -> Value {
     })
 }
 
-fn hex_to_bytes(hex: &str) -> Result<Vec<u8>, String> {
-    let hex = hex.replace(" ", "").replace("0x", "").replace(",", "");
-    if hex.len() % 2 != 0 {
-        return Err("Hex string must have even length".to_string());
-    }
-    (0..hex.len())
-        .step_by(2)
-        .map(|i| {
-            u8::from_str_radix(&hex[i..i + 2], 16)
-                .map_err(|e| format!("Invalid hex at position {}: {}", i, e))
-        })
-        .collect()
-}
-
 fn tool_serial_grep(args: &Value, manager: &SerialManager) -> Value {
     let pattern = match args.get("pattern").and_then(|p| p.as_str()) {
         Some(p) => p,
@@ -449,3 +454,87 @@ fn tool_serial_clear(manager: &SerialManager) -> Value {
         }]
     })
 }
+
+// ==================== Prompts ====================
+
+fn handle_prompts_list() -> Value {
+    json!({
+        "prompts": [
+            {
+                "name": "serial_usage_guide",
+                "description": "串口工具工作流指南：核心概念、推荐使用模式和常见陷阱",
+                "arguments": []
+            }
+        ]
+    })
+}
+
+fn handle_prompts_get(params: &Value) -> Value {
+    let name = params.get("name").and_then(|n| n.as_str()).unwrap_or("");
+
+    match name {
+        "serial_usage_guide" => json!({
+            "description": "串口工具工作流指南",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": {
+                        "type": "text",
+                        "text": SERIAL_USAGE_GUIDE
+                    }
+                }
+            ]
+        }),
+        _ => json!({
+            "isError": true,
+            "content": [{"type": "text", "text": format!("Unknown prompt: {}", name)}]
+        })
+    }
+}
+
+const SERIAL_USAGE_GUIDE: &str = r#"# 串口工具工作流指南
+
+## 核心概念
+
+**MCP 读缓冲区**是一个 64KB 的 FIFO 缓冲区，持续接收串口设备输出的数据。缓冲区满时最旧数据被丢弃。
+
+关键区别：
+- `serial_read` 是**破坏性读取**——调用后缓冲区被清空，数据不可恢复。
+- `serial_grep` 是**非破坏性搜索**——只读不删，可反复搜索。
+
+## 推荐工作流
+
+### 简单命令-响应
+
+直接使用 `serial_send` 的 `timeout_ms` 参数：
+
+```
+serial_send(data="AT", timeout_ms=1000)
+```
+
+### 等待特定输出（设备重启、长耗时操作）
+
+使用 `serial_grep` + `serial_clear` 组合：
+
+```
+1. serial_send(data="reboot")
+2. serial_grep(pattern="Kernel started", timeout_ms=5000)
+   → 匹配到：返回匹配行
+   → 未匹配：数据仍在缓冲区，可再次 grep 或转用 serial_read
+3. serial_clear()  // 清空缓冲区，为下一步准备
+```
+
+不要用 `serial_read` 轮询——每次调用都会清空缓冲区，如果目标输出还没出现数据就丢失了。
+
+### 获取大量输出
+
+```
+serial_send(data="showsysinfo")
+serial_read(timeout_ms=2000)
+```
+
+## 常见陷阱
+
+1. **不要手动添加换行**：`serial_send` 的 text 模式默认自动追加 `\r\n`，设置 `auto_newline=false` 才会发送原始数据。
+2. **serial_grep 不会阻塞数据流**：等待期间新数据正常进入缓冲区。
+3. **缓冲区 64KB 限制**：长时间运行的设备输出会覆盖旧数据，重要信息及时读取。"#;
