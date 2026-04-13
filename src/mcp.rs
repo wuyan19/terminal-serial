@@ -92,7 +92,7 @@ fn handle_tools_list() -> Value {
         "tools": [
             {
                 "name": "serial_send",
-                "description": "发送数据到串口。支持文本和十六进制模式。text 模式下默认自动在末尾追加 \\r\\n，只需发送命令内容即可，例如 \"showsysinfo\"、\"AT\"。",
+                "description": "发送数据到串口并可选等待设备响应。设置 timeout_ms > 0 时，会自动等待并返回设备的响应数据，无需再调用 serial_read。支持文本和十六进制模式。text 模式下默认自动在末尾追加 \\r\\n，只需发送命令内容即可，例如 \"showsysinfo\"、\"AT\"。",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -114,7 +114,7 @@ fn handle_tools_list() -> Value {
                         "timeout_ms": {
                             "type": "integer",
                             "default": 0,
-                            "description": "发送后等待设备响应的超时时间（毫秒）。设为 0（默认）则不等待响应立即返回，设为大于 0 的值则等待设备返回数据。"
+                            "description": "发送后等待设备响应的超时时间（毫秒）。设为 0（默认）则不等待响应立即返回。设为大于 0 的值则会等待设备返回数据并在结果中包含响应内容，这是获取命令响应的推荐方式，无需再额外调用 serial_read。"
                         }
                     },
                     "required": ["data"]
