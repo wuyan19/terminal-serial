@@ -1,9 +1,11 @@
 use crate::cmd::AppConfig;
 use crate::serial_manager::SerialManager;
 use crate::server::McpServer;
+use crate::session_log::{SessionLogDirection, SessionLogWriter};
 use crate::{Input, InputMessage};
 use encoding_rs::GBK;
 use std::io::{prelude::*, stdout};
+use std::sync::Arc;
 use std::{thread, time::Duration};
 
 pub struct TerminalSerial<'a> {
@@ -46,12 +48,28 @@ impl<'a> TerminalSerial<'a> {
             mcp_server.start(&self.config.mcp_host, self.config.mcp_port);
         }
 
+        let session_log: Option<Arc<SessionLogWriter>> =
+            self.config.session_log.as_ref().map(|path| {
+                match SessionLogWriter::new(path) {
+                    Ok(w) => {
+                        println!("Session logging to: {}", path);
+                        Arc::new(w)
+                    }
+                    Err(e) => {
+                        println!("Failed to open session log file '{}': {}", path, e);
+                        std::process::exit(1);
+                    }
+                }
+            });
+
         let quit1 = manager.quit_flag();
         let quit2 = manager.quit_flag();
         let serial_port1 = manager.port();
         let serial_port2 = manager.port();
         let read_buffer = manager.read_buffer();
         let read_buffer2 = manager.read_buffer();
+        let session_log_tx = session_log.clone();
+        let session_log_rx = session_log.clone();
         let mut handles = vec![];
 
         // 输入线程：键盘 -> 串口
@@ -77,6 +95,9 @@ impl<'a> TerminalSerial<'a> {
                         if let Some(text) = decode_gbk_input(&msg, &mut gbk_pending) {
                             let mut serial_port = serial_port1.lock().unwrap();
                             let _ = serial_port.write_all(text.as_bytes());
+                            if let Some(ref lw) = session_log_tx {
+                                lw.log(SessionLogDirection::Tx, text.as_bytes());
+                            }
                         }
                     }
                     _ => (),
@@ -103,6 +124,10 @@ impl<'a> TerminalSerial<'a> {
                     // 终端输出（不持串口锁）
                     print!("{}", String::from_utf8_lossy(&data));
                     let _ = stdout().flush();
+
+                    if let Some(ref lw) = session_log_rx {
+                        lw.log(SessionLogDirection::Rx, &data);
+                    }
 
                     // MCP 缓冲区写入（独立的锁）
                     let (lock, cvar) = &*read_buffer;

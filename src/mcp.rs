@@ -106,15 +106,10 @@ fn handle_tools_list() -> Value {
                             "default": true,
                             "description": "是否自动在 text 模式数据末尾追加 \\r\\n。设为 false 则发送原始数据，不追加换行"
                         },
-                        "wait_response": {
-                            "type": "boolean",
-                            "default": false,
-                            "description": "是否等待设备响应。设为 true 时，发送后会等待设备返回数据"
-                        },
                         "timeout_ms": {
                             "type": "integer",
-                            "default": 1000,
-                            "description": "仅在 wait_response=true 时生效。发送后等待设备响应的超时时间（毫秒）"
+                            "default": 0,
+                            "description": "发送后等待设备响应的超时时间（毫秒）。设为 0（默认）则不等待响应立即返回，设为大于 0 的值则等待设备返回数据。"
                         }
                     },
                     "required": ["data"]
@@ -135,7 +130,7 @@ fn handle_tools_list() -> Value {
                         "timeout_ms": {
                             "type": "integer",
                             "default": 100,
-                            "description": "当缓冲区为空时，等待新数据到达的超时时间（毫秒）。设为 0 则立即返回当前缓冲区内容（可能为空）。建议使用 serial_send 的 wait_response 代替轮询读取。"
+                            "description": "当缓冲区为空时，等待新数据到达的超时时间（毫秒）。设为 0 则立即返回当前缓冲区内容（可能为空）。建议使用 serial_send 的 timeout_ms 参数代替轮询读取。"
                         }
                     }
                 }
@@ -143,6 +138,38 @@ fn handle_tools_list() -> Value {
             {
                 "name": "serial_status",
                 "description": "获取当前串口连接状态和配置信息。",
+                "inputSchema": {
+                    "type": "object"
+                }
+            },
+            {
+                "name": "serial_grep",
+                "description": "搜索串口接收缓冲区中匹配指定模式的数据行，不清空缓冲区。支持正则表达式。可用于轮询等待特定输出模式。",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "pattern": {
+                            "type": "string",
+                            "description": "搜索模式。text 模式下支持正则表达式（如 'OK'、'ERROR.*timeout'）；hex 模式下为十六进制字节序列（如 'AA55'、'0D 0A'）"
+                        },
+                        "format": {
+                            "type": "string",
+                            "enum": ["text", "hex"],
+                            "default": "text",
+                            "description": "搜索和返回格式：text 为正则匹配文本行，hex 为字节序列匹配原始缓冲区"
+                        },
+                        "timeout_ms": {
+                            "type": "integer",
+                            "default": 1000,
+                            "description": "等待匹配的超时时间（毫秒）。设为 0 则立即搜索当前缓冲区内容。"
+                        }
+                    },
+                    "required": ["pattern"]
+                }
+            },
+            {
+                "name": "serial_clear",
+                "description": "清空串口接收缓冲区中的所有数据，不返回任何内容。",
                 "inputSchema": {
                     "type": "object"
                 }
@@ -168,6 +195,8 @@ fn handle_tools_call(params: &Value, manager: &SerialManager) -> Value {
         "serial_send" => tool_serial_send(&arguments, manager),
         "serial_read" => tool_serial_read(&arguments, manager),
         "serial_status" => tool_serial_status(manager),
+        "serial_grep" => tool_serial_grep(&arguments, manager),
+        "serial_clear" => tool_serial_clear(manager),
         _ => json!({
             "isError": true,
             "content": [{"type": "text", "text": format!("Unknown tool: {}", name)}]
@@ -224,17 +253,12 @@ fn tool_serial_send(args: &Value, manager: &SerialManager) -> Value {
 
     match manager.send(&bytes) {
         Ok(n) => {
-            let wait_response = args
-                .get("wait_response")
-                .and_then(|w| w.as_bool())
-                .unwrap_or(false);
+            let timeout_ms = args
+                .get("timeout_ms")
+                .and_then(|t| t.as_u64())
+                .unwrap_or(0) as u32;
 
-            if wait_response {
-                let timeout_ms = args
-                    .get("timeout_ms")
-                    .and_then(|t| t.as_u64())
-                    .unwrap_or(1000) as u32;
-
+            if timeout_ms > 0 {
                 // 先等待一小段时间让设备处理
                 std::thread::sleep(std::time::Duration::from_millis(50));
                 let response_data = manager.drain_buffer(timeout_ms);
@@ -319,4 +343,109 @@ fn hex_to_bytes(hex: &str) -> Result<Vec<u8>, String> {
                 .map_err(|e| format!("Invalid hex at position {}: {}", i, e))
         })
         .collect()
+}
+
+fn tool_serial_grep(args: &Value, manager: &SerialManager) -> Value {
+    let pattern = match args.get("pattern").and_then(|p| p.as_str()) {
+        Some(p) => p,
+        None => {
+            return json!({
+                "isError": true,
+                "content": [{"type": "text", "text": "Missing required parameter: pattern"}]
+            });
+        }
+    };
+
+    let timeout_ms = args
+        .get("timeout_ms")
+        .and_then(|t| t.as_u64())
+        .unwrap_or(1000) as u32;
+
+    let format = args
+        .get("format")
+        .and_then(|f| f.as_str())
+        .unwrap_or("text");
+
+    if format == "hex" {
+        // hex 模式：pattern 作为十六进制字节序列，在原始缓冲区中搜索
+        let pattern_bytes = match hex_to_bytes(pattern) {
+            Ok(b) => b,
+            Err(e) => {
+                return json!({
+                    "isError": true,
+                    "content": [{"type": "text", "text": format!("Invalid hex pattern: {}", e)}]
+                });
+            }
+        };
+
+        if pattern_bytes.is_empty() {
+            return json!({
+                "isError": true,
+                "content": [{"type": "text", "text": "Pattern is empty"}]
+            });
+        }
+
+        let matches = manager.grep_buffer_bytes(&pattern_bytes, timeout_ms);
+        if matches.is_empty() {
+            json!({
+                "content": [{
+                    "type": "text",
+                    "text": "No match found (timeout)"
+                }]
+            })
+        } else {
+            let output: Vec<String> = matches
+                .iter()
+                .map(|(pos, context)| {
+                    let hex: String = context
+                        .iter()
+                        .map(|b| format!("{:02X}", b))
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    format!("offset {}: {}", pos, hex)
+                })
+                .collect();
+            json!({
+                "content": [{
+                    "type": "text",
+                    "text": output.join("\n")
+                }]
+            })
+        }
+    } else {
+        // text 模式：pattern 作为正则表达式，按行匹配文本
+        match manager.grep_buffer(pattern, timeout_ms) {
+            Ok(lines) => {
+                if lines.is_empty() {
+                    json!({
+                        "content": [{
+                            "type": "text",
+                            "text": "No match found (timeout)"
+                        }]
+                    })
+                } else {
+                    json!({
+                        "content": [{
+                            "type": "text",
+                            "text": lines.join("\n")
+                        }]
+                    })
+                }
+            }
+            Err(e) => json!({
+                "isError": true,
+                "content": [{"type": "text", "text": format!("Grep failed: {}", e)}]
+            }),
+        }
+    }
+}
+
+fn tool_serial_clear(manager: &SerialManager) -> Value {
+    manager.clear_buffer();
+    json!({
+        "content": [{
+            "type": "text",
+            "text": "Buffer cleared"
+        }]
+    })
 }

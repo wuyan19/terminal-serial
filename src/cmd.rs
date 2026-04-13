@@ -12,6 +12,7 @@ pub struct AppConfig {
     pub serve: bool,
     pub mcp_host: String,
     pub mcp_port: u16,
+    pub session_log: Option<String>,
 }
 
 /// A cross-platform terminal serial port communication tool
@@ -57,6 +58,10 @@ struct Cli {
     /// MCP server bind address
     #[arg(short = 'H', long, default_value = "0.0.0.0")]
     mcp_host: String,
+
+    /// Log serial communication session to file
+    #[arg(long)]
+    session_log: Option<String>,
 }
 
 fn get_serial_port_list() -> Vec<String> {
@@ -187,5 +192,6 @@ pub fn cmd_parse() -> AppConfig {
         serve: cli.server,
         mcp_host: cli.mcp_host,
         mcp_port: cli.mcp_port,
+        session_log: cli.session_log,
     }
 }

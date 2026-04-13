@@ -1,3 +1,4 @@
+use crate::error::SerialError;
 use std::collections::VecDeque;
 use std::io::{Read, Write};
 use std::sync::{Arc, Condvar, Mutex};
@@ -43,7 +44,7 @@ impl SerialManager {
         parity: serialport::Parity,
         stop_bits: serialport::StopBits,
         flow_control: serialport::FlowControl,
-    ) -> Result<SerialManager, String> {
+    ) -> Result<SerialManager, SerialError> {
         let port = serialport::new(port_name, baud_rate)
             .data_bits(data_bits)
             .parity(parity)
@@ -51,7 +52,10 @@ impl SerialManager {
             .flow_control(flow_control)
             .timeout(Duration::from_millis(1))
             .open()
-            .map_err(|e| format!("Failed to open {}: {}", port_name, e))?;
+            .map_err(|e| SerialError::PortOpen {
+                port: port_name.to_string(),
+                source: e,
+            })?;
 
         Ok(SerialManager {
             port: Arc::new(Mutex::new(port)),
@@ -76,14 +80,14 @@ impl SerialManager {
         Arc::clone(&self.quit)
     }
 
-    pub fn send(&self, data: &[u8]) -> Result<usize, String> {
+    pub fn send(&self, data: &[u8]) -> Result<usize, SerialError> {
         let mut port = self.port.lock().unwrap();
-        port.write(data).map_err(|e| format!("Write error: {}", e))
+        port.write(data).map_err(SerialError::Write)
     }
 
-    pub fn read_serial(&self, buf: &mut [u8]) -> Result<usize, String> {
+    pub fn read_serial(&self, buf: &mut [u8]) -> Result<usize, SerialError> {
         let mut port = self.port.lock().unwrap();
-        port.read(buf).map_err(|e| format!("Read error: {}", e))
+        port.read(buf).map_err(SerialError::Read)
     }
 
     pub fn push_to_buffer(&self, data: &[u8]) {
@@ -114,6 +118,104 @@ impl SerialManager {
         let (lock, _) = &*self.read_buffer;
         let mut buffer = lock.lock().unwrap();
         buffer.clear();
+    }
+
+    /// 非破坏性读取：返回缓冲区内容的副本，不修改缓冲区
+    pub fn peek_buffer(&self) -> Vec<u8> {
+        let (lock, _) = &*self.read_buffer;
+        let buffer = lock.lock().unwrap();
+        buffer.iter().copied().collect()
+    }
+
+    /// 在缓冲区中搜索匹配模式的数据行，不修改缓冲区。
+    /// timeout_ms > 0 时等待直到匹配或超时；timeout_ms = 0 时立即返回当前结果。
+    pub fn grep_buffer(
+        &self,
+        pattern: &str,
+        timeout_ms: u32,
+    ) -> Result<Vec<String>, SerialError> {
+        let re = regex::Regex::new(pattern).map_err(SerialError::Regex)?;
+        let (lock, cvar) = &*self.read_buffer;
+
+        let deadline =
+            std::time::Instant::now() + Duration::from_millis(timeout_ms as u64);
+
+        loop {
+            let buffer = lock.lock().unwrap();
+            let bytes: Vec<u8> = buffer.iter().copied().collect();
+            let text = String::from_utf8_lossy(&bytes);
+            let lines: Vec<String> = text
+                .lines()
+                .filter(|line| re.is_match(line))
+                .map(|s| s.to_string())
+                .collect();
+
+            if !lines.is_empty() {
+                return Ok(lines);
+            }
+
+            if timeout_ms == 0 {
+                return Ok(vec![]);
+            }
+
+            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+            if remaining.is_zero() {
+                return Ok(vec![]);
+            }
+
+            let guard = cvar
+                .wait_timeout(buffer, remaining)
+                .unwrap_or_else(|e| e.into_inner());
+            drop(guard.0);
+        }
+    }
+
+    /// 在缓冲区中搜索字节序列，不修改缓冲区。
+    /// timeout_ms > 0 时等待直到匹配或超时；timeout_ms = 0 时立即返回当前结果。
+    /// 返回所有匹配位置及其上下文（前后各 16 字节）。
+    pub fn grep_buffer_bytes(
+        &self,
+        pattern: &[u8],
+        timeout_ms: u32,
+    ) -> Vec<(usize, Vec<u8>)> {
+        let (lock, cvar) = &*self.read_buffer;
+        let deadline =
+            std::time::Instant::now() + Duration::from_millis(timeout_ms as u64);
+        const CONTEXT: usize = 16;
+
+        loop {
+            let buffer = lock.lock().unwrap();
+            let bytes: Vec<u8> = buffer.iter().copied().collect();
+
+            let matches: Vec<(usize, Vec<u8>)> = bytes
+                .windows(pattern.len())
+                .enumerate()
+                .filter(|(_, window)| *window == pattern)
+                .map(|(pos, _)| {
+                    let start = pos.saturating_sub(CONTEXT);
+                    let end = (pos + pattern.len() + CONTEXT).min(bytes.len());
+                    (pos, bytes[start..end].to_vec())
+                })
+                .collect();
+
+            if !matches.is_empty() {
+                return matches;
+            }
+
+            if timeout_ms == 0 {
+                return vec![];
+            }
+
+            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+            if remaining.is_zero() {
+                return vec![];
+            }
+
+            let guard = cvar
+                .wait_timeout(buffer, remaining)
+                .unwrap_or_else(|e| e.into_inner());
+            drop(guard.0);
+        }
     }
 
     pub fn status(&self) -> SerialStatus {
