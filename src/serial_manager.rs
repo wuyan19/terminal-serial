@@ -82,7 +82,8 @@ impl SerialManager {
 
     pub fn send(&self, data: &[u8]) -> Result<usize, SerialError> {
         let mut port = self.port.lock().unwrap();
-        port.write(data).map_err(SerialError::Write)
+        port.write_all(data).map_err(SerialError::Write)?;
+        Ok(data.len())
     }
 
     pub fn read_serial(&self, buf: &mut [u8]) -> Result<usize, SerialError> {

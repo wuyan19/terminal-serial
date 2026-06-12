@@ -9,10 +9,13 @@ pub struct AppConfig {
     pub parity: serialport::Parity,
     pub stop_bits: serialport::StopBits,
     pub flow_control: serialport::FlowControl,
-    pub serve: bool,
+    pub mcp: bool,
     pub mcp_host: String,
     pub mcp_port: u16,
-    pub session_log: Option<String>,
+    pub telnet: bool,
+    pub telnet_host: String,
+    pub telnet_port: u16,
+    pub event_log: Option<String>,
 }
 
 /// A cross-platform terminal serial port communication tool
@@ -47,21 +50,33 @@ struct Cli {
     #[arg(short = 'l', long)]
     list: bool,
 
-    /// Enable MCP server mode
-    #[arg(short = 'S', long)]
-    server: bool,
+    /// Enable MCP server
+    #[arg(short = 'M', long)]
+    mcp: bool,
 
     /// MCP server port
-    #[arg(short = 'P', long, default_value_t = 8765)]
+    #[arg(long, default_value_t = 8765)]
     mcp_port: u16,
 
     /// MCP server bind address
-    #[arg(short = 'H', long, default_value = "0.0.0.0")]
+    #[arg(long, default_value = "0.0.0.0")]
     mcp_host: String,
 
-    /// Log serial communication session to file
+    /// Enable Telnet server
+    #[arg(short = 'T', long)]
+    telnet: bool,
+
+    /// Telnet server port
+    #[arg(long, default_value_t = 8766)]
+    telnet_port: u16,
+
+    /// Telnet server bind address
+    #[arg(long, default_value = "0.0.0.0")]
+    telnet_host: String,
+
+    /// Write events as JSONL
     #[arg(long)]
-    session_log: Option<String>,
+    event_log: Option<String>,
 }
 
 fn get_serial_port_list() -> Vec<String> {
@@ -189,9 +204,12 @@ pub fn cmd_parse() -> AppConfig {
         parity,
         stop_bits,
         flow_control,
-        serve: cli.server,
+        mcp: cli.mcp,
         mcp_host: cli.mcp_host,
         mcp_port: cli.mcp_port,
-        session_log: cli.session_log,
+        telnet: cli.telnet,
+        telnet_host: cli.telnet_host,
+        telnet_port: cli.telnet_port,
+        event_log: cli.event_log,
     }
 }

@@ -1,10 +1,12 @@
 use crate::cmd::AppConfig;
+use crate::event_log::EventLogWriter;
 use crate::serial_manager::SerialManager;
 use crate::server::McpServer;
-use crate::session_log::{SessionLogDirection, SessionLogWriter};
+use crate::telnet::TelnetServer;
 use crate::{Input, InputMessage};
 use encoding_rs::GBK;
 use std::io::{prelude::*, stdout};
+use std::sync::mpsc;
 use std::sync::Arc;
 use std::{thread, time::Duration};
 
@@ -38,7 +40,7 @@ impl<'a> TerminalSerial<'a> {
             manager.port_name()
         );
 
-        if self.config.serve {
+        if self.config.mcp {
             println!(
                 "MCP server listening on {}:{}",
                 self.config.mcp_host, self.config.mcp_port
@@ -48,15 +50,30 @@ impl<'a> TerminalSerial<'a> {
             mcp_server.start(&self.config.mcp_host, self.config.mcp_port);
         }
 
-        let session_log: Option<Arc<SessionLogWriter>> =
-            self.config.session_log.as_ref().map(|path| {
-                match SessionLogWriter::new(path) {
+        // Telnet 广播通道
+        let telnet_tx = if self.config.telnet {
+            let (tx, rx) = mpsc::channel::<Vec<u8>>();
+            let telnet_server = TelnetServer::new(&manager);
+            telnet_server.start(&self.config.telnet_host, self.config.telnet_port, rx);
+            println!(
+                "Telnet server listening on {}:{}",
+                self.config.telnet_host, self.config.telnet_port
+            );
+            Some(tx)
+        } else {
+            None
+        };
+
+        let event_log: Option<Arc<EventLogWriter>> =
+            self.config.event_log.as_ref().map(|path| {
+                match EventLogWriter::new(path) {
                     Ok(w) => {
-                        println!("Session logging to: {}", path);
+                        println!("Event logging to: {}", path);
+                        w.log_startup(manager.port_name());
                         Arc::new(w)
                     }
                     Err(e) => {
-                        println!("Failed to open session log file '{}': {}", path, e);
+                        println!("Failed to open event log file '{}': {}", path, e);
                         std::process::exit(1);
                     }
                 }
@@ -68,8 +85,8 @@ impl<'a> TerminalSerial<'a> {
         let serial_port2 = manager.port();
         let read_buffer = manager.read_buffer();
         let read_buffer2 = manager.read_buffer();
-        let session_log_tx = session_log.clone();
-        let session_log_rx = session_log.clone();
+        let event_log_tx = event_log.clone();
+        let event_log_rx = event_log.clone();
         let mut handles = vec![];
 
         // 输入线程：键盘 -> 串口
@@ -93,11 +110,11 @@ impl<'a> TerminalSerial<'a> {
                     }
                     InputMessage::Data(msg) => {
                         if let Some(text) = decode_gbk_input(&msg, &mut gbk_pending) {
+                            if let Some(ref lw) = event_log_tx {
+                                lw.log_tx("local", text.as_bytes());
+                            }
                             let mut serial_port = serial_port1.lock().unwrap();
                             let _ = serial_port.write_all(text.as_bytes());
-                            if let Some(ref lw) = session_log_tx {
-                                lw.log(SessionLogDirection::Tx, text.as_bytes());
-                            }
                         }
                     }
                     _ => (),
@@ -105,13 +122,12 @@ impl<'a> TerminalSerial<'a> {
             }
         }));
 
-        // 读取线程：串口 -> 终端 + MCP 缓冲区
+        // 读取线程：串口 -> 终端 + MCP 缓冲区 + Telnet 广播
         handles.push(thread::spawn(move || {
             let mut buf: Vec<u8> = vec![0; 2048];
             loop {
                 thread::sleep(Duration::from_millis(2));
 
-                // 仅在串口读取期间持锁，读取后立即释放
                 let data = {
                     let mut serial_port = serial_port2.lock().unwrap();
                     match serial_port.read(&mut buf[..]) {
@@ -121,15 +137,14 @@ impl<'a> TerminalSerial<'a> {
                 };
 
                 if let Some(data) = data {
-                    // 终端输出（不持串口锁）
                     print!("{}", String::from_utf8_lossy(&data));
                     let _ = stdout().flush();
 
-                    if let Some(ref lw) = session_log_rx {
-                        lw.log(SessionLogDirection::Rx, &data);
+                    if let Some(ref lw) = event_log_rx {
+                        lw.log_rx(&data);
                     }
 
-                    // MCP 缓冲区写入（独立的锁）
+                    // MCP 缓冲区写入
                     let (lock, cvar) = &*read_buffer;
                     let mut buffer = lock.lock().unwrap();
                     for &b in &data {
@@ -139,6 +154,11 @@ impl<'a> TerminalSerial<'a> {
                         buffer.push_back(b);
                     }
                     cvar.notify_one();
+
+                    // Telnet 广播
+                    if let Some(ref tx) = telnet_tx {
+                        let _ = tx.send(data);
+                    }
                 }
 
                 let quit = quit2.lock().unwrap();
@@ -151,6 +171,10 @@ impl<'a> TerminalSerial<'a> {
         handles.into_iter().for_each(|handle| {
             handle.join().unwrap();
         });
+
+        if let Some(ref lw) = event_log {
+            lw.log_shutdown();
+        }
     }
 }
 
@@ -159,7 +183,7 @@ fn decode_gbk_input(msg: &[u8], pending: &mut Vec<u8>) -> Option<String> {
     if !msg.is_empty() && msg[0] >= 0x81 && msg[0] <= 0xFE {
         pending.push(msg[0]);
         if pending.len() % 2 == 1 {
-            return None; // 等待第二个字节
+            return None;
         }
         let result = GBK.decode(pending).0.to_string();
         pending.clear();

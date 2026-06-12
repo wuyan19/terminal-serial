@@ -1,11 +1,12 @@
 pub mod cmd;
 pub mod error;
+pub mod event_log;
 pub mod getch;
 pub mod keyboard;
 pub mod mcp;
 pub mod serial_manager;
 pub mod server;
-pub mod session_log;
+pub mod telnet;
 pub mod task;
 
 use keyboard::Key;
