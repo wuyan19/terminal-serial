@@ -1,7 +1,7 @@
 # terminal-serial
 
 ## Introduce
-A terminal serial port tool developed in the **Rust** language.
+A terminal serial port tool developed in the **Rust** language. Supports local terminal, MCP server, and Telnet server for multi-client remote serial access.
 
 ## Install
 
@@ -24,7 +24,7 @@ Download the binary for your platform from the [Releases](https://github.com/wuy
 ## Instructions
 - **Help**
 ```shell
-Usage: terminal-serial.exe [OPTIONS]
+Usage: terminal-serial [OPTIONS]
 
 Options:
   -p, --port <PORT>                Serial port name
@@ -34,9 +34,13 @@ Options:
   -s, --stopbits <STOPBITS>        Stop bits: 1|2
   -f, --flowcontrol <FLOWCONTROL>  Flow control: N|S|H
   -l, --list                       List available serial ports
-  -S, --server                     Enable MCP server mode
-  -P, --mcp-port <MCP_PORT>        MCP server port [default: 8765]
-  -H, --mcp-host <MCP_HOST>        MCP server bind address [default: 0.0.0.0]
+  -M, --mcp                        Enable MCP server
+      --mcp-port <MCP_PORT>        MCP server port [default: 8765]
+      --mcp-host <MCP_HOST>        MCP server bind address [default: 0.0.0.0]
+  -T, --telnet                     Enable Telnet server
+      --telnet-port <TELNET_PORT>  Telnet server port [default: 8766]
+      --telnet-host <TELNET_HOST>  Telnet server bind address [default: 0.0.0.0]
+      --event-log <EVENT_LOG>      Write events as JSONL
   -h, --help                       Print help
   -V, --version                    Print version
 ```
@@ -67,13 +71,13 @@ terminal-serial supports MCP (Model Context Protocol) server mode, allowing AI t
 
 ```shell
 # Start with MCP server enabled
-terminal-serial --server -p COM3 -b 115200
+terminal-serial -M -p COM3 -b 115200
 
 # Specify MCP server address and port
-terminal-serial --server --mcp-host 0.0.0.0 --mcp-port 9000 -p COM3
+terminal-serial -M --mcp-host 0.0.0.0 --mcp-port 9000 -p COM3
 ```
 
-When `--server` is enabled, an HTTP MCP server starts alongside the interactive terminal. You can use the serial port normally while Claude Code is connected.
+When `-M` is enabled, an HTTP MCP server starts alongside the interactive terminal. You can use the serial port normally while Claude Code is connected.
 
 Keyboard shortcuts in serve mode:
 - `Ctrl + ]` — Quit
@@ -141,3 +145,63 @@ Replace `<host>` with the IP address of the machine running terminal-serial (e.g
   }
 }
 ```
+
+## Telnet Server
+
+terminal-serial supports Telnet server mode, allowing multiple remote clients to access the serial port simultaneously via standard telnet clients.
+
+### Quick Start
+
+```shell
+# Local terminal + Telnet server
+terminal-serial -T -p COM3 -b 115200
+
+# Local terminal + MCP + Telnet
+terminal-serial -M -T -p COM3 -b 115200
+
+# Custom Telnet port
+terminal-serial -T --telnet-port 3000 -p COM3
+```
+
+When `-T` is enabled, a Telnet server starts on port 8766 (default). Remote clients can connect using any standard telnet client:
+
+```shell
+telnet <host> 8766
+```
+
+Features:
+- **Multi-client**: Multiple telnet clients can connect simultaneously
+- **Coexistence**: Local terminal, MCP server, and telnet clients share the same serial port
+- **Broadcast**: Serial output is broadcast to all connected clients in real-time
+- **Telnet protocol**: Handles IAC negotiation and CR/NUL conventions
+
+## Event Log
+
+Use `--event-log` to record the serial hub event stream as JSONL (one JSON object per line):
+
+```shell
+terminal-serial -p COM3 -T --event-log events.jsonl
+```
+
+Event types:
+
+| Event | Description |
+|-------|-------------|
+| `startup` | Hub started, includes port name |
+| `shutdown` | Hub stopped |
+| `client_connected` | Client connected (source: mcp/telnet) |
+| `client_disconnected` | Client disconnected |
+| `tx` | Data sent to serial port (source: local/mcp/telnet) |
+| `rx` | Data received from serial port |
+| `error` | Error occurred |
+
+Example output:
+
+```json
+{"ts":"2026-06-12T10:00:00Z","event":"startup","port":"COM3"}
+{"ts":"2026-06-12T10:00:02Z","event":"client_connected","source":"telnet","client":"192.168.1.100:52344"}
+{"ts":"2026-06-12T10:00:03Z","event":"tx","source":"telnet","data":"68656C6C6F0D0A"}
+{"ts":"2026-06-12T10:00:04Z","event":"rx","data":"4F4B0D0A"}
+```
+
+`data` fields are hex-encoded.

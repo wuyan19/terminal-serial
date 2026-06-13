@@ -127,8 +127,14 @@ fn client_reader(
                     let _ = stream.flush();
                 }
                 if !payload.is_empty() {
-                    if let Ok(mut port) = serial_port.lock() {
-                        let _ = port.write_all(&payload);
+                    // 剥离 NUL：telnet 回车发送 \r\0（CR NUL 表示纯回车），
+                    // 不剥离会导致 \0 残留在 tty 缓冲区，污染 getty/login 阶段的下一行输入
+                    let filtered: Vec<u8> =
+                        payload.into_iter().filter(|&b| b != 0).collect();
+                    if !filtered.is_empty() {
+                        if let Ok(mut port) = serial_port.lock() {
+                            let _ = port.write_all(&filtered);
+                        }
                     }
                 }
             }
