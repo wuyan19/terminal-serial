@@ -3,6 +3,7 @@ pub mod error;
 pub mod event_log;
 pub mod getch;
 pub mod keyboard;
+pub mod log_reader;
 pub mod mcp;
 pub mod serial_manager;
 pub mod server;

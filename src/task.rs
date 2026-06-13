@@ -141,7 +141,7 @@ impl<'a> TerminalSerial<'a> {
                     let _ = stdout().flush();
 
                     if let Some(ref lw) = event_log_rx {
-                        lw.log_rx(&data);
+                        lw.log_rx("serial", &data);
                     }
 
                     // MCP 缓冲区写入

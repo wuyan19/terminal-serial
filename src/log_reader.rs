@@ -1,0 +1,396 @@
+use crate::cmd::{LogConfig, OutputFormat};
+use crate::event_log::hex_encode;
+use chrono::DateTime;
+use regex::Regex;
+use serde_json::Value;
+use std::fs;
+use std::io::Write;
+
+#[derive(Clone)]
+pub struct LogEvent {
+    pub timestamp: String,
+    pub event_type: String,
+    pub source: Option<String>,
+    pub data: Option<Vec<u8>>,
+    pub message: Option<String>,
+    pub port: Option<String>,
+    pub client: Option<String>,
+    pub raw_json: Value,
+}
+
+struct SessionSummary {
+    start_time: Option<String>,
+    end_time: Option<String>,
+    duration: Option<String>,
+    port: Option<String>,
+    total_events: usize,
+    tx_count: usize,
+    rx_count: usize,
+    tx_bytes: usize,
+    rx_bytes: usize,
+    error_count: usize,
+    clients: Vec<String>,
+}
+
+fn hex_decode(hex: &str) -> Option<Vec<u8>> {
+    if hex.is_empty() {
+        return Some(Vec::new());
+    }
+    if hex.len() % 2 != 0 {
+        return None;
+    }
+    (0..hex.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).ok())
+        .collect()
+}
+
+fn parse_log_event(line: &str) -> Option<LogEvent> {
+    let value: Value = serde_json::from_str(line).ok()?;
+
+    let event_type = value.get("event")?.as_str()?.to_string();
+    let timestamp = value
+        .get("ts")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let source = value.get("source").and_then(|v| v.as_str()).map(String::from);
+    let data = value
+        .get("data")
+        .and_then(|v| v.as_str())
+        .and_then(hex_decode);
+    let message = value
+        .get("message")
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    let port = value
+        .get("port")
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    let client = value
+        .get("client")
+        .and_then(|v| v.as_str())
+        .map(String::from);
+
+    Some(LogEvent {
+        timestamp,
+        event_type,
+        source,
+        data,
+        message,
+        port,
+        client,
+        raw_json: value,
+    })
+}
+
+fn read_log_file(path: &str) -> Result<Vec<LogEvent>, String> {
+    let content =
+        fs::read_to_string(path).map_err(|e| format!("无法读取文件 '{}': {}", path, e))?;
+    Ok(content
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .filter_map(|line| parse_log_event(line))
+        .collect())
+}
+
+fn decode_event_text(event: &LogEvent) -> String {
+    if let Some(ref data) = event.data {
+        match std::str::from_utf8(data) {
+            Ok(s) => {
+                let printable: String = s
+                    .chars()
+                    .map(|c| if c.is_control() && c != '\n' && c != '\r' { ' ' } else { c })
+                    .collect();
+                printable.trim_end().to_string()
+            }
+            Err(_) => format!("<binary: {} bytes>", data.len()),
+        }
+    } else {
+        event
+            .message
+            .as_deref()
+            .or(event.port.as_deref())
+            .or(event.client.as_deref())
+            .unwrap_or("")
+            .to_string()
+    }
+}
+
+fn filter_events(events: &[LogEvent], config: &LogConfig) -> Vec<LogEvent> {
+    let grep_re = config.grep.as_ref().and_then(|p| Regex::new(p).ok());
+
+    events
+        .iter()
+        .filter(|e| {
+            if let Some(ref event_type) = config.event {
+                if e.event_type != *event_type {
+                    return false;
+                }
+            }
+            if let Some(ref source) = config.source {
+                if e.source.as_deref() != Some(source.as_str()) {
+                    return false;
+                }
+            }
+            if let Some(ref pattern) = grep_re {
+                let text = decode_event_text(e);
+                if !pattern.is_match(&text) {
+                    return false;
+                }
+            }
+            true
+        })
+        .cloned()
+        .collect()
+}
+
+fn format_timestamp(ts: &str) -> String {
+    if let Ok(dt) = DateTime::parse_from_rfc3339(ts) {
+        dt.format("%H:%M:%S%.3f").to_string()
+    } else {
+        ts.to_string()
+    }
+}
+
+fn format_text(events: &[LogEvent], raw: bool) -> String {
+    let mut out = String::new();
+    for e in events {
+        match e.event_type.as_str() {
+            "tx" | "rx" => {
+                if raw {
+                    if let Some(ref d) = e.data {
+                        out.push_str(&hex_encode(d));
+                    }
+                } else {
+                    out.push_str(&decode_event_text(e));
+                }
+            }
+            _ => {
+                if !out.is_empty() && !out.ends_with('\n') {
+                    out.push('\n');
+                }
+                let ts = format_timestamp(&e.timestamp);
+                let src = e.source.as_deref().unwrap_or("");
+                let line = match e.event_type.as_str() {
+                    "startup" => format!(
+                        "[{}] {:<4} port={}",
+                        ts,
+                        e.event_type,
+                        e.port.as_deref().unwrap_or("")
+                    ),
+                    "shutdown" => format!("[{}] {}", ts, e.event_type),
+                    "error" => format!(
+                        "[{}] {:<4} {}",
+                        ts,
+                        e.event_type,
+                        e.message.as_deref().unwrap_or("")
+                    ),
+                    "client_connected" | "client_disconnected" => format!(
+                        "[{}] {:<4} {:<8} client={}",
+                        ts,
+                        e.event_type,
+                        src,
+                        e.client.as_deref().unwrap_or("")
+                    ),
+                    _ => format!("[{}] {}", ts, e.event_type),
+                };
+                out.push_str(&line);
+                out.push('\n');
+            }
+        }
+    }
+    out
+}
+
+fn format_json(events: &[LogEvent]) -> String {
+    events
+        .iter()
+        .map(|e| serde_json::to_string(&e.raw_json).unwrap_or_default())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn format_markdown(events: &[LogEvent]) -> String {
+    let mut md = String::from("# Session Log\n\n");
+    md.push_str("| Time | Event | Source | Data |\n");
+    md.push_str("|------|-------|--------|------|\n");
+
+    for e in events {
+        let ts = format_timestamp(&e.timestamp);
+        let src = e.source.as_deref().unwrap_or("");
+        let data_str = decode_event_text(e).replace('\\', "\\\\").replace('|', "\\|").replace('\n', " ");
+
+        md.push_str(&format!(
+            "| {} | {} | {} | {} |\n",
+            ts, e.event_type, src, data_str
+        ));
+    }
+
+    md
+}
+
+fn compute_summary(events: &[LogEvent]) -> SessionSummary {
+    let mut clients: Vec<String> = Vec::new();
+    let mut tx_count = 0usize;
+    let mut rx_count = 0usize;
+    let mut tx_bytes = 0usize;
+    let mut rx_bytes = 0usize;
+    let mut error_count = 0usize;
+    let mut start_time = None;
+    let mut end_time = None;
+    let mut port = None;
+
+    for e in events {
+        match e.event_type.as_str() {
+            "startup" => {
+                start_time = Some(e.timestamp.clone());
+                port = e.port.clone();
+            }
+            "shutdown" => {
+                end_time = Some(e.timestamp.clone());
+            }
+            "tx" => {
+                tx_count += 1;
+                tx_bytes += e.data.as_ref().map(|d| d.len()).unwrap_or(0);
+            }
+            "rx" => {
+                rx_count += 1;
+                rx_bytes += e.data.as_ref().map(|d| d.len()).unwrap_or(0);
+            }
+            "error" => {
+                error_count += 1;
+            }
+            "client_connected" => {
+                if let Some(ref c) = e.client {
+                    if !clients.contains(c) {
+                        clients.push(c.clone());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let duration = match (&start_time, &end_time) {
+        (Some(s), Some(e)) => {
+            let start = DateTime::parse_from_rfc3339(s).ok();
+            let end = DateTime::parse_from_rfc3339(e).ok();
+            match (start, end) {
+                (Some(s), Some(e)) => {
+                    let diff = e.signed_duration_since(s);
+                    let secs = diff.num_seconds();
+                    let mins = secs / 60;
+                    let secs = secs % 60;
+                    Some(if mins > 0 {
+                        format!("{}m {}s", mins, secs)
+                    } else {
+                        format!("{}s", secs)
+                    })
+                }
+                _ => None,
+            }
+        }
+        _ => None,
+    };
+
+    SessionSummary {
+        start_time,
+        end_time,
+        duration,
+        port,
+        total_events: events.len(),
+        tx_count,
+        rx_count,
+        tx_bytes,
+        rx_bytes,
+        error_count,
+        clients,
+    }
+}
+
+fn format_summary_text(summary: &SessionSummary) -> String {
+    let mut out = String::from("=== Session Summary ===\n");
+    if let Some(ref port) = summary.port {
+        out.push_str(&format!("Port:      {}\n", port));
+    }
+    if let Some(ref t) = summary.start_time {
+        out.push_str(&format!("Start:     {}\n", format_timestamp(t)));
+    }
+    if let Some(ref t) = summary.end_time {
+        out.push_str(&format!("End:       {}\n", format_timestamp(t)));
+    }
+    if let Some(ref d) = summary.duration {
+        out.push_str(&format!("Duration:  {}\n", d));
+    }
+    out.push_str(&format!("Events:    {} total\n", summary.total_events));
+    out.push_str(&format!(
+        "  tx:        {:>6}  ({:>10} bytes)\n",
+        summary.tx_count, summary.tx_bytes
+    ));
+    out.push_str(&format!(
+        "  rx:        {:>6}  ({:>10} bytes)\n",
+        summary.rx_count, summary.rx_bytes
+    ));
+    if summary.error_count > 0 {
+        out.push_str(&format!("  error:     {:>6}\n", summary.error_count));
+    }
+    if !summary.clients.is_empty() {
+        out.push_str(&format!(
+            "Clients:   {}\n",
+            summary.clients.join(", ")
+        ));
+    }
+    out
+}
+
+fn write_output(content: &str, output_path: &Option<String>) -> Result<(), String> {
+    match output_path {
+        Some(path) => {
+            let mut file =
+                fs::File::create(path).map_err(|e| format!("无法写入文件 '{}': {}", path, e))?;
+            file.write_all(content.as_bytes())
+                .map_err(|e| format!("写入失败: {}", e))?;
+        }
+        None => {
+            print!("{}", content);
+            let _ = std::io::stdout().flush();
+        }
+    }
+    Ok(())
+}
+
+pub fn run(config: &LogConfig) -> Result<(), String> {
+    let events = read_log_file(&config.file)?;
+    if events.is_empty() {
+        println!("日志文件为空或无有效事件。");
+        return Ok(());
+    }
+
+    if config.summary {
+        let summary = compute_summary(&events);
+        let output = format_summary_text(&summary);
+        write_output(&output, &config.output)?;
+        return Ok(());
+    }
+
+    let filtered = filter_events(&events, config);
+    if filtered.is_empty() {
+        println!("没有匹配的事件。");
+        return Ok(());
+    }
+
+    let output = match config.format {
+        OutputFormat::Text => format_text(&filtered, config.raw),
+        OutputFormat::Json => format_json(&filtered),
+        OutputFormat::Markdown => format_markdown(&filtered),
+    };
+
+    write_output(&output, &config.output)?;
+
+    if config.output.is_none() && !output.ends_with('\n') {
+        println!();
+    }
+
+    Ok(())
+}

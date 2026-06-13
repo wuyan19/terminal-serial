@@ -1,6 +1,28 @@
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use std::io::{stdin, stdout, Write};
 use std::process;
+
+pub enum Command {
+    Connect(AppConfig),
+    Log(LogConfig),
+}
+
+pub enum OutputFormat {
+    Text,
+    Json,
+    Markdown,
+}
+
+pub struct LogConfig {
+    pub file: String,
+    pub raw: bool,
+    pub event: Option<String>,
+    pub source: Option<String>,
+    pub grep: Option<String>,
+    pub summary: bool,
+    pub format: OutputFormat,
+    pub output: Option<String>,
+}
 
 pub struct AppConfig {
     pub port: String,
@@ -77,6 +99,49 @@ struct Cli {
     /// Write events as JSONL
     #[arg(long)]
     event_log: Option<String>,
+
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand, Debug)]
+enum Commands {
+    /// View, filter and export event logs
+    Log(LogArgs),
+}
+
+#[derive(clap::Args, Debug)]
+pub struct LogArgs {
+    /// Event log file (.jsonl)
+    pub file: String,
+
+    /// Show raw hex data
+    #[arg(long)]
+    pub raw: bool,
+
+    /// Filter by event type (startup, shutdown, tx, rx, error, client_connected, client_disconnected)
+    #[arg(long)]
+    pub event: Option<String>,
+
+    /// Filter by source (local, mcp, telnet, serial)
+    #[arg(long)]
+    pub source: Option<String>,
+
+    /// Search decoded text content
+    #[arg(long)]
+    pub grep: Option<String>,
+
+    /// Show session summary
+    #[arg(long)]
+    pub summary: bool,
+
+    /// Output format: text (default), json, md, html
+    #[arg(long, default_value = "text")]
+    pub format: String,
+
+    /// Output file
+    #[arg(short = 'o', long)]
+    pub output: Option<String>,
 }
 
 fn get_serial_port_list() -> Vec<String> {
@@ -103,8 +168,25 @@ fn get_serial_port_list() -> Vec<String> {
     ports
 }
 
-pub fn cmd_parse() -> AppConfig {
+pub fn cmd_parse() -> Command {
     let cli = Cli::parse();
+
+    if let Some(Commands::Log(args)) = cli.command {
+        return Command::Log(LogConfig {
+            file: args.file,
+            raw: args.raw,
+            event: args.event,
+            source: args.source,
+            grep: args.grep,
+            summary: args.summary,
+            format: match args.format.as_str() {
+                "json" => OutputFormat::Json,
+                "md" => OutputFormat::Markdown,
+                _ => OutputFormat::Text,
+            },
+            output: args.output,
+        });
+    }
 
     let port_list = get_serial_port_list();
 
@@ -197,7 +279,7 @@ pub fn cmd_parse() -> AppConfig {
         }
     };
 
-    AppConfig {
+    Command::Connect(AppConfig {
         port,
         baud_rate: cli.baud_rate,
         data_bits,
@@ -211,5 +293,5 @@ pub fn cmd_parse() -> AppConfig {
         telnet_host: cli.telnet_host,
         telnet_port: cli.telnet_port,
         event_log: cli.event_log,
-    }
+    })
 }

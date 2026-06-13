@@ -65,10 +65,11 @@ impl EventLogWriter {
         }));
     }
 
-    pub fn log_rx(&self, data: &[u8]) {
+    pub fn log_rx(&self, source: &str, data: &[u8]) {
         self.write_event(json!({
             "ts": Utc::now().to_rfc3339(),
             "event": "rx",
+            "source": source,
             "data": hex_encode(data),
         }));
     }
@@ -82,6 +83,6 @@ impl EventLogWriter {
     }
 }
 
-fn hex_encode(data: &[u8]) -> String {
+pub(crate) fn hex_encode(data: &[u8]) -> String {
     data.iter().map(|b| format!("{:02X}", b)).collect()
 }
