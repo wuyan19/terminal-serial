@@ -1,0 +1,40 @@
+{
+  "_comment": "terminal-serial 统一工具配置示例。当前版本仅 macros section 生效，顶层 schema 设计为可扩展（新增字段对老配置透明）。命令：terminal-serial -p COM3 --config config.example.json",
+  "macros": {
+    "init": {
+      "description": "设备初始化（复位 + 关闭回显 + 等待就绪）",
+      "steps": [
+        { "type": "send", "data": "ATZ", "auto_newline": true },
+        { "type": "delay", "ms": 500 },
+        { "type": "send", "data": "ATE0", "auto_newline": true },
+        { "type": "expect", "pattern": "OK", "timeout_ms": 3000 },
+        { "type": "clear" }
+      ]
+    },
+    "login": {
+      "description": "登录序列（回车唤醒 + 等待提示符 + 凭据）",
+      "steps": [
+        { "type": "send", "data": "0D0A", "format": "hex" },
+        { "type": "expect", "pattern": "login:", "timeout_ms": 2000 },
+        { "type": "send", "data": "root", "auto_newline": true },
+        { "type": "expect", "pattern": ":", "timeout_ms": 2000 },
+        { "type": "send", "data": "admin123", "auto_newline": true }
+      ]
+    },
+    "ping": {
+      "description": "发送 AT 探活命令（无换行）",
+      "steps": [
+        { "type": "send", "data": "AT", "auto_newline": false }
+      ]
+    },
+    "reboot": {
+      "description": "重启设备并清空缓冲区（含 16 进制 Ctrl-X）",
+      "steps": [
+        { "type": "clear" },
+        { "type": "send", "data": "AT+RST", "auto_newline": true },
+        { "type": "delay", "ms": 2000 },
+        { "type": "send", "data": "18", "format": "hex" }
+      ]
+    }
+  }
+}

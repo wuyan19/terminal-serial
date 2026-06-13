@@ -1,3 +1,4 @@
+use crate::event_log::EventLogWriter;
 use crate::serial_manager::SerialManager;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -27,14 +28,19 @@ pub struct TelnetServer {
     clients: Arc<Mutex<Vec<TcpStream>>>,
     serial_port: Arc<Mutex<Box<dyn serialport::SerialPort>>>,
     quit: Arc<AtomicBool>,
+    event_log: Option<Arc<EventLogWriter>>,
 }
 
 impl TelnetServer {
-    pub fn new(manager: &SerialManager) -> Self {
+    pub fn new(
+        manager: &SerialManager,
+        event_log: Option<Arc<EventLogWriter>>,
+    ) -> Self {
         TelnetServer {
             clients: Arc::new(Mutex::new(Vec::new())),
             serial_port: manager.port(),
             quit: manager.quit_flag(),
+            event_log,
         }
     }
 
@@ -71,6 +77,7 @@ impl TelnetServer {
         let clients_acc = Arc::clone(&self.clients);
         let serial_port_acc = Arc::clone(&self.serial_port);
         let quit_acc = Arc::clone(&self.quit);
+        let event_log_acc = self.event_log.clone();
         thread::spawn(move || {
             loop {
                 match listener.accept() {
@@ -83,7 +90,9 @@ impl TelnetServer {
                         let client_stream = match stream.try_clone() {
                             Ok(s) => s,
                             Err(e) => {
-                                eprintln!("Telnet clone failed: {}", e);
+                                if let Some(ref log) = event_log_acc {
+                                    log.log_error(&format!("Telnet clone failed: {}", e));
+                                }
                                 continue;
                             }
                         };
@@ -92,19 +101,28 @@ impl TelnetServer {
                             let mut clients = clients_acc.lock().unwrap();
                             clients.push(stream);
                         }
-                        eprintln!("Telnet client connected: {}", addr);
+                        if let Some(ref log) = event_log_acc {
+                            log.log_client_connected("telnet", &addr.to_string());
+                        }
 
                         let serial_port = Arc::clone(&serial_port_acc);
                         let quit = Arc::clone(&quit_acc);
+                        let event_log_reader = event_log_acc.clone();
+                        let client_addr = addr.to_string();
                         thread::spawn(move || {
                             client_reader(client_stream, serial_port, quit);
+                            if let Some(ref log) = event_log_reader {
+                                log.log_client_disconnected("telnet", &client_addr);
+                            }
                         });
                     }
                     Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                         thread::sleep(std::time::Duration::from_millis(10));
                     }
                     Err(e) => {
-                        eprintln!("Telnet accept error: {}", e);
+                        if let Some(ref log) = event_log_acc {
+                            log.log_error(&format!("Telnet accept error: {}", e));
+                        }
                     }
                 }
 

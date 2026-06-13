@@ -39,6 +39,7 @@ pub struct AppConfig {
     pub telnet_host: String,
     pub telnet_port: u16,
     pub event_log: Option<String>,
+    pub config_file: Option<String>,
 }
 
 /// A cross-platform terminal serial port communication tool
@@ -101,6 +102,10 @@ struct Cli {
     #[arg(long)]
     event_log: Option<String>,
 
+    /// Path to tool config file (JSON, currently defines macros)
+    #[arg(long)]
+    config: Option<String>,
+
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -120,7 +125,7 @@ pub struct LogArgs {
     #[arg(long)]
     pub raw: bool,
 
-    /// Filter by event type (startup, shutdown, tx, rx, error, client_connected, client_disconnected)
+    /// Filter by event type (startup, shutdown, tx, rx, error, client_connected, client_disconnected, action)
     #[arg(long)]
     pub event: Option<String>,
 
@@ -290,5 +295,6 @@ pub fn cmd_parse() -> Command {
         telnet_host: cli.telnet_host,
         telnet_port: cli.telnet_port,
         event_log: cli.event_log,
+        config_file: cli.config,
     })
 }

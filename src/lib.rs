@@ -1,13 +1,16 @@
 pub mod cmd;
+pub mod config;
 pub mod error;
 pub mod event_log;
 pub mod getch;
 pub mod input;
 pub mod keyboard;
 pub mod log_reader;
+pub mod macro_runner;
 pub mod mcp;
 pub mod mcp_http;
 pub mod serial_manager;
-pub mod telnet;
 pub mod task;
+pub mod telnet;
+pub mod ui;
 pub mod util;

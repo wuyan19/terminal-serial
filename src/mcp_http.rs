@@ -1,3 +1,4 @@
+use crate::event_log::EventLogWriter;
 use crate::mcp;
 use crate::serial_manager::SerialManager;
 use std::io::{BufRead, BufReader, Read, Write};
@@ -11,13 +12,18 @@ const MAX_BODY_SIZE: usize = 10 * 1024 * 1024; // 10MB
 pub struct McpHttpServer {
     manager: SerialManager,
     quit: Arc<AtomicBool>,
+    event_log: Option<Arc<EventLogWriter>>,
 }
 
 impl McpHttpServer {
-    pub fn new(manager: &SerialManager) -> Self {
+    pub fn new(
+        manager: &SerialManager,
+        event_log: Option<Arc<EventLogWriter>>,
+    ) -> Self {
         McpHttpServer {
             manager: manager.clone(),
             quit: manager.quit_flag(),
+            event_log,
         }
     }
 
@@ -29,6 +35,7 @@ impl McpHttpServer {
 
         let manager = self.manager.clone();
         let quit = Arc::clone(&self.quit);
+        let event_log = self.event_log.clone();
 
         std::thread::spawn(move || {
             for stream in listener.incoming() {
@@ -44,7 +51,9 @@ impl McpHttpServer {
                         });
                     }
                     Err(e) => {
-                        eprintln!("Connection failed: {}", e);
+                        if let Some(ref log) = event_log {
+                            log.log_error(&format!("MCP HTTP connection failed: {}", e));
+                        }
                     }
                 }
             }

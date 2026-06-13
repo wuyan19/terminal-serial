@@ -15,6 +15,8 @@ pub struct LogEvent {
     pub message: Option<String>,
     pub port: Option<String>,
     pub client: Option<String>,
+    pub action: Option<String>,
+    pub name: Option<String>,
     pub raw_json: Value,
 }
 
@@ -29,6 +31,7 @@ struct SessionSummary {
     tx_bytes: usize,
     rx_bytes: usize,
     error_count: usize,
+    action_count: usize,
     clients: Vec<String>,
 }
 
@@ -58,6 +61,14 @@ fn parse_log_event(line: &str) -> Option<LogEvent> {
         .get("client")
         .and_then(|v| v.as_str())
         .map(String::from);
+    let action = value
+        .get("action")
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    let name = value
+        .get("name")
+        .and_then(|v| v.as_str())
+        .map(String::from);
 
     Some(LogEvent {
         timestamp,
@@ -67,6 +78,8 @@ fn parse_log_event(line: &str) -> Option<LogEvent> {
         message,
         port,
         client,
+        action,
+        name,
         raw_json: value,
     })
 }
@@ -92,6 +105,12 @@ fn decode_event_text(event: &LogEvent) -> String {
                 printable.trim_end().to_string()
             }
             Err(_) => format!("<binary: {} bytes>", data.len()),
+        }
+    } else if event.event_type == "action" {
+        let action = event.action.as_deref().unwrap_or("");
+        match event.name.as_deref() {
+            Some(n) if !n.is_empty() => format!("{} {}", action, n),
+            _ => action.to_string(),
         }
     } else {
         event
@@ -180,6 +199,14 @@ fn format_text(events: &[LogEvent], raw: bool) -> String {
                         src,
                         e.client.as_deref().unwrap_or("")
                     ),
+                    "action" => format!(
+                        "[{}] {:<4} {:<8} {:<10} {}",
+                        ts,
+                        e.event_type,
+                        src,
+                        e.action.as_deref().unwrap_or(""),
+                        e.name.as_deref().unwrap_or("")
+                    ),
                     _ => format!("[{}] {}", ts, e.event_type),
                 };
                 out.push_str(&line);
@@ -224,6 +251,7 @@ fn compute_summary(events: &[LogEvent]) -> SessionSummary {
     let mut tx_bytes = 0usize;
     let mut rx_bytes = 0usize;
     let mut error_count = 0usize;
+    let mut action_count = 0usize;
     let mut start_time = None;
     let mut end_time = None;
     let mut port = None;
@@ -247,6 +275,9 @@ fn compute_summary(events: &[LogEvent]) -> SessionSummary {
             }
             "error" => {
                 error_count += 1;
+            }
+            "action" => {
+                action_count += 1;
             }
             "client_connected" => {
                 if let Some(ref c) = e.client {
@@ -292,6 +323,7 @@ fn compute_summary(events: &[LogEvent]) -> SessionSummary {
         tx_bytes,
         rx_bytes,
         error_count,
+        action_count,
         clients,
     }
 }
@@ -321,6 +353,9 @@ fn format_summary_text(summary: &SessionSummary) -> String {
     ));
     if summary.error_count > 0 {
         out.push_str(&format!("  error:     {:>6}\n", summary.error_count));
+    }
+    if summary.action_count > 0 {
+        out.push_str(&format!("  action:    {:>6}\n", summary.action_count));
     }
     if !summary.clients.is_empty() {
         out.push_str(&format!(
@@ -404,6 +439,15 @@ mod tests {
     }
 
     #[test]
+    fn parse_log_event_action() {
+        let line = r#"{"ts":"2025-01-01T00:00:00Z","event":"action","source":"local","action":"run_macro","name":"init"}"#;
+        let e = parse_log_event(line).unwrap();
+        assert_eq!(e.event_type, "action");
+        assert_eq!(e.action.as_deref(), Some("run_macro"));
+        assert_eq!(e.name.as_deref(), Some("init"));
+    }
+
+    #[test]
     fn parse_log_event_invalid_json() {
         assert!(parse_log_event("not json").is_none());
     }
@@ -413,34 +457,46 @@ mod tests {
         assert!(parse_log_event(r#"{"ts":"2025-01-01T00:00:00Z"}"#).is_none());
     }
 
-    #[test]
-    fn decode_event_text_ascii() {
-        let e = LogEvent {
+    fn make_event(event_type: &str, data: Option<Vec<u8>>) -> LogEvent {
+        LogEvent {
             timestamp: String::new(),
-            event_type: "tx".into(),
+            event_type: event_type.into(),
             source: None,
-            data: Some(b"Hello\r\n".to_vec()),
+            data,
             message: None,
             port: None,
             client: None,
+            action: None,
+            name: None,
             raw_json: Value::Null,
-        };
+        }
+    }
+
+    #[test]
+    fn decode_event_text_ascii() {
+        let e = make_event("tx", Some(b"Hello\r\n".to_vec()));
         assert_eq!(decode_event_text(&e), "Hello");
     }
 
     #[test]
     fn decode_event_text_binary() {
-        let e = LogEvent {
-            timestamp: String::new(),
-            event_type: "rx".into(),
-            source: None,
-            data: Some(vec![0xFF, 0xFE]),
-            message: None,
-            port: None,
-            client: None,
-            raw_json: Value::Null,
-        };
+        let e = make_event("rx", Some(vec![0xFF, 0xFE]));
         assert_eq!(decode_event_text(&e), "<binary: 2 bytes>");
+    }
+
+    #[test]
+    fn decode_event_text_action_with_name() {
+        let mut e = make_event("action", None);
+        e.action = Some("run_macro".into());
+        e.name = Some("init".into());
+        assert_eq!(decode_event_text(&e), "run_macro init");
+    }
+
+    #[test]
+    fn decode_event_text_action_without_name() {
+        let mut e = make_event("action", None);
+        e.action = Some("clear_buffer".into());
+        assert_eq!(decode_event_text(&e), "clear_buffer");
     }
 
     #[test]
@@ -454,5 +510,17 @@ mod tests {
     #[test]
     fn format_timestamp_fallback() {
         assert_eq!(format_timestamp("raw-text"), "raw-text");
+    }
+
+    #[test]
+    fn compute_summary_counts_action() {
+        let events = vec![
+            make_event("action", None),
+            make_event("action", None),
+            make_event("tx", Some(b"x".to_vec())),
+        ];
+        let summary = compute_summary(&events);
+        assert_eq!(summary.action_count, 2);
+        assert_eq!(summary.tx_count, 1);
     }
 }

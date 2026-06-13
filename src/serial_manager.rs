@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
-const MCP_BUFFER_MAX: usize = 65536;
+const RX_BUFFER_MAX: usize = 65536;
 
 pub struct SerialStatus {
     pub port_name: String,
@@ -69,7 +69,7 @@ impl SerialManager {
             port: Arc::new(Mutex::new(port)),
             port_name: port_name.to_string(),
             read_buffer: Arc::new((
-                Mutex::new(VecDeque::with_capacity(MCP_BUFFER_MAX)),
+                Mutex::new(VecDeque::with_capacity(RX_BUFFER_MAX)),
                 Condvar::new(),
             )),
             quit: Arc::new(AtomicBool::new(false)),
@@ -97,7 +97,7 @@ impl SerialManager {
         let (lock, cvar) = &*self.read_buffer;
         let mut buffer = lock.lock().unwrap();
         for &b in data {
-            if buffer.len() >= MCP_BUFFER_MAX {
+            if buffer.len() >= RX_BUFFER_MAX {
                 buffer.pop_front();
             }
             buffer.push_back(b);

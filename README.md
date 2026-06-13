@@ -41,6 +41,7 @@ Options:
       --telnet-port <TELNET_PORT>  Telnet server port [default: 8766]
       --telnet-host <TELNET_HOST>  Telnet server bind address [default: 0.0.0.0]
       --event-log <EVENT_LOG>      Write events as JSONL
+      --config <CONFIG>            Path to tool config file (JSON, currently defines macros)
   -h, --help                       Print help
   -V, --version                    Print version
 ```
@@ -81,7 +82,7 @@ When `-M` is enabled, an HTTP MCP server starts alongside the interactive termin
 
 Keyboard shortcuts in serve mode:
 - `Ctrl + ]` — Quit
-- `Ctrl + K` — Clear MCP read buffer
+- `Ctrl + K` — Clear RX buffer
 
 ### Claude Code Configuration
 
@@ -175,6 +176,99 @@ Features:
 - **Broadcast**: Serial output is broadcast to all connected clients in real-time
 - **Telnet protocol**: Handles IAC negotiation and CR/NUL conventions
 
+## Configuration File
+
+terminal-serial supports a JSON configuration file for defining reusable macros — sequences of `send` / `delay` / `expect` / `clear` steps that automate repetitive serial interactions like device initialization, login, or debug command sequences.
+
+### Quick Start
+
+```shell
+terminal-serial -p COM3 -b 115200 --config config.example.json
+```
+
+A sample config is provided at [config.example.json](config.example.json). Copy it as a starting point:
+
+```shell
+cp config.example.json my-config.json
+# Edit my-config.json as needed
+terminal-serial -p COM3 --config my-config.json
+```
+
+On startup, the tool prints a compact macro list:
+
+```
+COM3 is connected. Press 'Ctrl + ]' to quit.
+Macros: [1]init [2]login [3]ping [4]reboot (Ctrl+O for menu)
+```
+
+### JSON Schema
+
+```json
+{
+  "macros": {
+    "init": {
+      "description": "Device initialization",
+      "steps": [
+        { "type": "send", "data": "ATZ", "format": "text", "auto_newline": true },
+        { "type": "delay", "ms": 500 },
+        { "type": "send", "data": "ATE0", "auto_newline": true },
+        { "type": "expect", "pattern": "OK", "timeout_ms": 3000 },
+        { "type": "clear" }
+      ]
+    },
+    "login": {
+      "steps": [
+        { "type": "send", "data": "0D0A", "format": "hex" }
+      ]
+    }
+  }
+}
+```
+
+Macro ordering is determined alphabetically by key (BTreeMap), so `[1]` always maps to the first key, `[2]` to the second, and so on.
+
+### Step Types
+
+| Step | Fields | Description |
+|------|--------|-------------|
+| `send` | `data` (required), `format` (`text` \| `hex` \| `raw`, default `text`), `auto_newline` (default `true`, appends `\r\n`) | Send data to serial port. `hex` format interprets `data` as a hex string (e.g. `"0D0A"`). |
+| `delay` | `ms` | Wait `ms` milliseconds before the next step. |
+| `expect` | `pattern` (regex), `timeout_ms` | Wait until a line matching `pattern` appears in the RX buffer, or fail on timeout. Use after a `send`+`delay` to verify device response. |
+| `clear` | — | Clear the receive buffer. Useful before a fresh command sequence. |
+
+### Triggering Macros
+
+Press `Ctrl + O` to list macros and enter menu selection mode:
+
+```
+=== Macros ===
+[1] init - Device initialization
+[2] login
+[3] ping
+[4] reboot
+(Press 1-9 to run, any key to exit)
+```
+
+- Press `1`–`9` to execute the corresponding macro.
+- Press any other key (including `Enter`, `Esc`, arrows) to exit the menu without running.
+- `Ctrl + ]` (quit) and `Ctrl + K` (clear buffer) still take effect immediately inside the menu.
+
+Macro execution feedback is shown with ANSI colors:
+
+```
+▶ [macro: init]        (cyan, start)
+<serial output...>
+✓ [macro: init done]   (green, success)
+```
+
+On failure (e.g. `expect` timeout):
+
+```
+✗ [macro: init failed: expect "OK" timeout]   (red)
+```
+
+Macro execution is also recorded as `action` events when `--event-log` is enabled (see [Event Log](#event-log)).
+
 ## Event Log
 
 Use `--event-log` to record the serial hub event stream as JSONL (one JSON object per line):
@@ -193,6 +287,7 @@ Event types:
 | `client_disconnected` | Client disconnected |
 | `tx` | Data sent to serial port (source: local/mcp/telnet) |
 | `rx` | Data received from serial port |
+| `action` | Control action performed (source: local). `action` field is `run_macro` or `clear_buffer`; `name` field carries the macro name when applicable. |
 | `error` | Error occurred |
 
 Example output:
@@ -202,6 +297,8 @@ Example output:
 {"ts":"2026-06-12T10:00:02Z","event":"client_connected","source":"telnet","client":"192.168.1.100:52344"}
 {"ts":"2026-06-12T10:00:03Z","event":"tx","source":"telnet","data":"68656C6C6F0D0A"}
 {"ts":"2026-06-12T10:00:04Z","event":"rx","data":"4F4B0D0A"}
+{"ts":"2026-06-12T10:00:05Z","event":"action","source":"local","action":"run_macro","name":"init"}
+{"ts":"2026-06-12T10:00:06Z","event":"action","source":"local","action":"clear_buffer"}
 ```
 
 `data` fields are hex-encoded.

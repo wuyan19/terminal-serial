@@ -82,4 +82,17 @@ impl EventLogWriter {
             "message": message,
         }));
     }
+
+    pub fn log_action(&self, source: &str, action: &str, name: Option<&str>) {
+        let mut event = json!({
+            "ts": Utc::now().to_rfc3339(),
+            "event": "action",
+            "source": source,
+            "action": action,
+        });
+        if let Some(n) = name {
+            event["name"] = json!(n);
+        }
+        self.write_event(event);
+    }
 }

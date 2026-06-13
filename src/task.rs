@@ -1,9 +1,12 @@
 use crate::cmd::AppConfig;
+use crate::config::Config;
 use crate::event_log::EventLogWriter;
 use crate::input::{Input, InputMessage};
-use crate::serial_manager::SerialManager;
+use crate::macro_runner;
 use crate::mcp_http::McpHttpServer;
+use crate::serial_manager::SerialManager;
 use crate::telnet::TelnetServer;
+use crate::ui;
 #[cfg(windows)]
 use encoding_rs::GBK;
 use std::io::{prelude::*, stdout};
@@ -41,15 +44,31 @@ impl<'a> TerminalSerial<'a> {
             manager.port_name()
         );
 
+        // 先创建 event_log：startup 事件需先记录，MCP/Telnet 服务器也共享此 writer
+        let event_log: Option<Arc<EventLogWriter>> =
+            self.config.event_log.as_ref().and_then(|path| {
+                match EventLogWriter::new(path) {
+                    Ok(w) => {
+                        println!("Event logging to: {}", path);
+                        w.log_startup(manager.port_name());
+                        Some(Arc::new(w))
+                    }
+                    Err(e) => {
+                        eprintln!("Warning: Failed to open event log file '{}': {}", path, e);
+                        None
+                    }
+                }
+            });
+
         if self.config.mcp {
-            let mcp_http_server = McpHttpServer::new(&manager);
+            let mcp_http_server = McpHttpServer::new(&manager, event_log.clone());
             match mcp_http_server.start(&self.config.mcp_host, self.config.mcp_port) {
                 Ok(()) => {
                     println!(
                         "MCP server listening on {}:{}",
                         self.config.mcp_host, self.config.mcp_port
                     );
-                    println!("Press 'Ctrl + K' to clear MCP read buffer.");
+                    println!("Press 'Ctrl + K' to clear RX buffer.");
                 }
                 Err(e) => {
                     eprintln!("{}", e);
@@ -61,7 +80,7 @@ impl<'a> TerminalSerial<'a> {
         // Telnet 广播通道
         let telnet_tx = if self.config.telnet {
             let (tx, rx) = mpsc::channel::<Vec<u8>>();
-            let telnet_server = TelnetServer::new(&manager);
+            let telnet_server = TelnetServer::new(&manager, event_log.clone());
             match telnet_server.start(&self.config.telnet_host, self.config.telnet_port, rx) {
                 Ok(()) => {
                     println!(
@@ -79,20 +98,20 @@ impl<'a> TerminalSerial<'a> {
             None
         };
 
-        let event_log: Option<Arc<EventLogWriter>> =
-            self.config.event_log.as_ref().and_then(|path| {
-                match EventLogWriter::new(path) {
-                    Ok(w) => {
-                        println!("Event logging to: {}", path);
-                        w.log_startup(manager.port_name());
-                        Some(Arc::new(w))
-                    }
-                    Err(e) => {
-                        eprintln!("Warning: Failed to open event log file '{}': {}", path, e);
-                        None
-                    }
+        let macro_config: Arc<Config> = match self.config.config_file.as_ref() {
+            Some(path) => match Config::load(path) {
+                Ok(c) => Arc::new(c),
+                Err(e) => {
+                    eprintln!("Warning: Failed to load config '{}': {}", path, e);
+                    Arc::new(Config::empty())
                 }
-            });
+            },
+            None => Arc::new(Config::empty()),
+        };
+
+        if !macro_config.macros.is_empty() {
+            print_macro_hint(&macro_config);
+        }
 
         let quit1 = manager.quit_flag();
         let quit2 = manager.quit_flag();
@@ -102,11 +121,13 @@ impl<'a> TerminalSerial<'a> {
         let read_buffer2 = manager.read_buffer();
         let event_log_tx = event_log.clone();
         let event_log_rx = event_log.clone();
+        let macro_manager = manager.clone();
+        let macro_cfg = Arc::clone(&macro_config);
         let mut handles = vec![];
 
         // 输入线程：键盘 -> 串口
         handles.push(thread::spawn(move || {
-            let input = Input::new();
+            let mut input = Input::new();
             let mut gbk_pending: Vec<u8> = vec![];
             loop {
                 if let Some(msg) = input.get_message() {
@@ -120,8 +141,22 @@ impl<'a> TerminalSerial<'a> {
                             let mut buffer = lock.lock().unwrap();
                             buffer.clear();
                             drop(buffer);
-                            print!("[Buffer cleared]\r\n");
-                            let _ = stdout().flush();
+                            if let Some(ref lw) = event_log_tx {
+                                lw.log_action("local", "clear_buffer", None);
+                            }
+                            ui::success("Buffer cleared");
+                        }
+                        InputMessage::ShowMacroMenu => {
+                            if macro_cfg.macros.is_empty() {
+                                ui::hint("No macros defined");
+                                input.cancel_menu_mode();
+                            } else {
+                                print_macro_menu(&macro_cfg);
+                            }
+                        }
+                        InputMessage::RunMacro(idx) => {
+                            let log_ref = event_log_tx.as_ref().map(|arc| arc.as_ref());
+                            run_macro_by_index(idx, &macro_cfg, &macro_manager, log_ref);
                         }
                         InputMessage::Data(msg) => {
                             if let Some(text) = decode_gbk_input(&msg, &mut gbk_pending) {
@@ -137,7 +172,7 @@ impl<'a> TerminalSerial<'a> {
             }
         }));
 
-        // 读取线程：串口 -> 终端 + MCP 缓冲区 + Telnet 广播
+        // 读取线程：串口 -> 终端 + 接收缓冲区 + Telnet 广播
         handles.push(thread::spawn(move || {
             let mut buf: Vec<u8> = vec![0; 2048];
             loop {
@@ -159,7 +194,7 @@ impl<'a> TerminalSerial<'a> {
                         lw.log_rx("serial", &data);
                     }
 
-                    // MCP 缓冲区写入
+                    // 接收缓冲区写入
                     let (lock, cvar) = &*read_buffer;
                     let mut buffer = lock.lock().unwrap();
                     for &b in &data {
@@ -188,6 +223,65 @@ impl<'a> TerminalSerial<'a> {
 
         if let Some(ref lw) = event_log {
             lw.log_shutdown();
+        }
+    }
+}
+
+/// 启动时若配置含宏，print 一行紧凑提示（不超过 9 个）。
+fn print_macro_hint(config: &Config) {
+    let names: Vec<String> = config
+        .macros
+        .iter()
+        .take(9)
+        .enumerate()
+        .map(|(i, (name, _))| format!("[{}]{}", i + 1, name))
+        .collect();
+    if names.is_empty() {
+        return;
+    }
+    println!("Macros: {} (Ctrl+O for menu)", names.join(" "));
+}
+
+/// Ctrl+O 触发的完整宏菜单（青色 ANSI），进入 MenuSelect 模式等待数字选择。
+fn print_macro_menu(config: &Config) {
+    ui::heading("Macros");
+    for (i, (name, mac)) in config.macros.iter().take(9).enumerate() {
+        let desc = mac
+            .description
+            .as_deref()
+            .filter(|d| !d.is_empty())
+            .map(|d| format!(" - {}", d))
+            .unwrap_or_default();
+        println!("[{}] {}{}", i + 1, name, desc);
+    }
+    ui::hint("Press 1-9 to run, any key to exit");
+}
+
+/// 按 1-indexed 序号执行宏。结果以 ANSI 颜色反馈：青色 ▶ 开始，绿色 ✓ 成功，红色 ✗ 失败。
+fn run_macro_by_index<S: crate::serial_manager::SerialOps>(
+    idx: usize,
+    config: &Config,
+    manager: &S,
+    event_log: Option<&EventLogWriter>,
+) {
+    if idx == 0 || idx > 9 {
+        ui::fail(&format!("macro index {} out of range", idx));
+        return;
+    }
+    match config.macro_at_index(idx - 1) {
+        Some((name, mac)) => {
+            ui::info(&format!("macro: {}", name));
+            match macro_runner::run_macro(name, mac, manager, event_log, "local") {
+                Ok(()) => {
+                    ui::success(&format!("macro: {} done", name));
+                }
+                Err(e) => {
+                    ui::fail(&format!("macro: {} failed: {}", name, e));
+                }
+            }
+        }
+        None => {
+            ui::fail(&format!("macro index {} out of range", idx));
         }
     }
 }
