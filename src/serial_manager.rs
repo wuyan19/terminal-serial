@@ -17,6 +17,26 @@ pub struct SerialStatus {
     pub is_open: bool,
 }
 
+/// 抽象的串口操作接口。协议层（mcp.rs）只依赖此 trait，
+/// 不依赖具体的 SerialManager 实现，便于测试和替换后端。
+pub trait SerialOps {
+    fn send(&self, data: &[u8]) -> Result<usize, SerialError>;
+    fn drain_buffer(&self, timeout_ms: u32) -> Vec<u8>;
+    fn clear_buffer(&self);
+    fn grep_buffer(
+        &self,
+        pattern: &str,
+        timeout_ms: u32,
+    ) -> Result<Vec<String>, SerialError>;
+    fn grep_buffer_bytes(
+        &self,
+        pattern: &[u8],
+        timeout_ms: u32,
+    ) -> Vec<(usize, Vec<u8>)>;
+    fn status(&self) -> SerialStatus;
+}
+
+#[derive(Clone)]
 pub struct SerialManager {
     port: Arc<Mutex<Box<dyn serialport::SerialPort>>>,
     port_name: String,
@@ -25,19 +45,6 @@ pub struct SerialManager {
 }
 
 impl SerialManager {
-    pub fn from_parts(
-        port: Arc<Mutex<Box<dyn serialport::SerialPort>>>,
-        read_buffer: Arc<(Mutex<VecDeque<u8>>, Condvar)>,
-        port_name: String,
-    ) -> SerialManager {
-        SerialManager {
-            port,
-            port_name,
-            read_buffer,
-            quit: Arc::new(AtomicBool::new(false)),
-        }
-    }
-
     pub fn open(
         port_name: &str,
         baud_rate: u32,
@@ -81,12 +88,6 @@ impl SerialManager {
         Arc::clone(&self.quit)
     }
 
-    pub fn send(&self, data: &[u8]) -> Result<usize, SerialError> {
-        let mut port = self.port.lock().unwrap();
-        port.write_all(data).map_err(SerialError::Write)?;
-        Ok(data.len())
-    }
-
     pub fn read_serial(&self, buf: &mut [u8]) -> Result<usize, SerialError> {
         let mut port = self.port.lock().unwrap();
         port.read(buf).map_err(SerialError::Read)
@@ -104,7 +105,34 @@ impl SerialManager {
         cvar.notify_one();
     }
 
-    pub fn drain_buffer(&self, timeout_ms: u32) -> Vec<u8> {
+    /// 非破坏性读取：返回缓冲区内容的副本，不修改缓冲区
+    pub fn peek_buffer(&self) -> Vec<u8> {
+        let (lock, _) = &*self.read_buffer;
+        let buffer = lock.lock().unwrap();
+        buffer.iter().copied().collect()
+    }
+
+    pub fn is_quit(&self) -> bool {
+        self.quit.load(Ordering::Relaxed)
+    }
+
+    pub fn set_quit(&self) {
+        self.quit.store(true, Ordering::Relaxed);
+    }
+
+    pub fn port_name(&self) -> &str {
+        &self.port_name
+    }
+}
+
+impl SerialOps for SerialManager {
+    fn send(&self, data: &[u8]) -> Result<usize, SerialError> {
+        let mut port = self.port.lock().unwrap();
+        port.write_all(data).map_err(SerialError::Write)?;
+        Ok(data.len())
+    }
+
+    fn drain_buffer(&self, timeout_ms: u32) -> Vec<u8> {
         let (lock, cvar) = &*self.read_buffer;
         let mut buffer = lock.lock().unwrap();
         if timeout_ms > 0 && buffer.is_empty() {
@@ -116,22 +144,15 @@ impl SerialManager {
         buffer.drain(..).collect()
     }
 
-    pub fn clear_buffer(&self) {
+    fn clear_buffer(&self) {
         let (lock, _) = &*self.read_buffer;
         let mut buffer = lock.lock().unwrap();
         buffer.clear();
     }
 
-    /// 非破坏性读取：返回缓冲区内容的副本，不修改缓冲区
-    pub fn peek_buffer(&self) -> Vec<u8> {
-        let (lock, _) = &*self.read_buffer;
-        let buffer = lock.lock().unwrap();
-        buffer.iter().copied().collect()
-    }
-
     /// 在缓冲区中搜索匹配模式的数据行，不修改缓冲区。
     /// timeout_ms > 0 时等待直到匹配或超时；timeout_ms = 0 时立即返回当前结果。
-    pub fn grep_buffer(
+    fn grep_buffer(
         &self,
         pattern: &str,
         timeout_ms: u32,
@@ -175,7 +196,7 @@ impl SerialManager {
     /// 在缓冲区中搜索字节序列，不修改缓冲区。
     /// timeout_ms > 0 时等待直到匹配或超时；timeout_ms = 0 时立即返回当前结果。
     /// 返回所有匹配位置及其上下文（前后各 16 字节）。
-    pub fn grep_buffer_bytes(
+    fn grep_buffer_bytes(
         &self,
         pattern: &[u8],
         timeout_ms: u32,
@@ -220,7 +241,7 @@ impl SerialManager {
         }
     }
 
-    pub fn status(&self) -> SerialStatus {
+    fn status(&self) -> SerialStatus {
         let port = self.port.lock().unwrap();
 
         let baud_rate = port.baud_rate().unwrap_or(0);
@@ -257,17 +278,5 @@ impl SerialManager {
             flow_control: flow_control.to_string(),
             is_open: !self.is_quit(),
         }
-    }
-
-    pub fn is_quit(&self) -> bool {
-        self.quit.load(Ordering::Relaxed)
-    }
-
-    pub fn set_quit(&self) {
-        self.quit.store(true, Ordering::Relaxed);
-    }
-
-    pub fn port_name(&self) -> &str {
-        &self.port_name
     }
 }

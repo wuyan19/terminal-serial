@@ -1,28 +1,23 @@
 use crate::mcp;
 use crate::serial_manager::SerialManager;
-use std::collections::VecDeque;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpListener;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::Arc;
 use std::time::Duration;
 
 const MAX_BODY_SIZE: usize = 10 * 1024 * 1024; // 10MB
 
 pub struct McpServer {
-    read_buffer: Arc<(Mutex<VecDeque<u8>>, Condvar)>,
-    serial_port: Arc<Mutex<Box<dyn serialport::SerialPort>>>,
+    manager: SerialManager,
     quit: Arc<AtomicBool>,
-    port_name: String,
 }
 
 impl McpServer {
     pub fn new(manager: &SerialManager) -> Self {
         McpServer {
-            read_buffer: manager.read_buffer(),
-            serial_port: manager.port(),
+            manager: manager.clone(),
             quit: manager.quit_flag(),
-            port_name: manager.port_name().to_string(),
         }
     }
 
@@ -32,26 +27,20 @@ impl McpServer {
             format!("Failed to bind MCP server on {}: {}", addr, e)
         })?;
 
-        let read_buffer = Arc::clone(&self.read_buffer);
-        let serial_port = Arc::clone(&self.serial_port);
+        let manager = self.manager.clone();
         let quit = Arc::clone(&self.quit);
-        let port_name = self.port_name.clone();
 
         std::thread::spawn(move || {
             for stream in listener.incoming() {
-                let quit = Arc::clone(&quit);
                 if quit.load(Ordering::Relaxed) {
                     break;
                 }
 
                 match stream {
                     Ok(stream) => {
-                        let read_buffer = Arc::clone(&read_buffer);
-                        let serial_port = Arc::clone(&serial_port);
-                        let port_name = port_name.clone();
-
+                        let manager = manager.clone();
                         std::thread::spawn(move || {
-                            handle_connection(stream, read_buffer, serial_port, port_name);
+                            handle_connection(stream, manager);
                         });
                     }
                     Err(e) => {
@@ -65,12 +54,7 @@ impl McpServer {
     }
 }
 
-fn handle_connection(
-    stream: std::net::TcpStream,
-    read_buffer: Arc<(Mutex<VecDeque<u8>>, Condvar)>,
-    serial_port: Arc<Mutex<Box<dyn serialport::SerialPort>>>,
-    port_name: String,
-) {
+fn handle_connection(stream: std::net::TcpStream, manager: SerialManager) {
     let _ = stream.set_read_timeout(Some(Duration::from_secs(30)));
     let _ = stream.set_write_timeout(Some(Duration::from_secs(30)));
 
@@ -151,13 +135,6 @@ fn handle_connection(
     }
 
     let body_str = String::from_utf8_lossy(&body);
-
-    // 创建临时 SerialManager 来处理请求
-    let manager = SerialManager::from_parts(
-        serial_port,
-        read_buffer,
-        port_name,
-    );
 
     let response = mcp::handle_request(&body_str, &manager);
     let response_body = serde_json::to_string(&response).unwrap_or_default();

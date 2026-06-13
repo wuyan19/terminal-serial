@@ -1,10 +1,10 @@
-use crate::serial_manager::SerialManager;
+use crate::serial_manager::SerialOps;
 use crate::util::hex_decode;
 use serde_json::{json, Value};
 
 const PROTOCOL_VERSION: &str = "2024-11-05";
 
-pub fn handle_request(body: &str, manager: &SerialManager) -> Value {
+pub fn handle_request<S: SerialOps>(body: &str, manager: &S) -> Value {
     let request: Value = match serde_json::from_str(body) {
         Ok(v) => v,
         Err(e) => {
@@ -189,7 +189,7 @@ fn hex_to_bytes(hex: &str) -> Result<Vec<u8>, String> {
     hex_decode(&cleaned).ok_or_else(|| "Invalid hex string".to_string())
 }
 
-fn handle_tools_call(params: &Value, manager: &SerialManager) -> Value {
+fn handle_tools_call<S: SerialOps>(params: &Value, manager: &S) -> Value {
     let name = match params.get("name").and_then(|n| n.as_str()) {
         Some(n) => n,
         None => {
@@ -215,7 +215,7 @@ fn handle_tools_call(params: &Value, manager: &SerialManager) -> Value {
     }
 }
 
-fn tool_serial_send(args: &Value, manager: &SerialManager) -> Value {
+fn tool_serial_send<S: SerialOps>(args: &Value, manager: &S) -> Value {
     let data_str = match args.get("data").and_then(|d| d.as_str()) {
         Some(d) => d,
         None => {
@@ -297,7 +297,7 @@ fn tool_serial_send(args: &Value, manager: &SerialManager) -> Value {
     }
 }
 
-fn tool_serial_read(args: &Value, manager: &SerialManager) -> Value {
+fn tool_serial_read<S: SerialOps>(args: &Value, manager: &S) -> Value {
     let timeout_ms = args
         .get("timeout_ms")
         .and_then(|t| t.as_u64())
@@ -323,7 +323,7 @@ fn tool_serial_read(args: &Value, manager: &SerialManager) -> Value {
     })
 }
 
-fn tool_serial_status(manager: &SerialManager) -> Value {
+fn tool_serial_status<S: SerialOps>(manager: &S) -> Value {
     let status = manager.status();
     json!({
         "content": [{
@@ -342,7 +342,7 @@ fn tool_serial_status(manager: &SerialManager) -> Value {
     })
 }
 
-fn tool_serial_grep(args: &Value, manager: &SerialManager) -> Value {
+fn tool_serial_grep<S: SerialOps>(args: &Value, manager: &S) -> Value {
     let pattern = match args.get("pattern").and_then(|p| p.as_str()) {
         Some(p) => p,
         None => {
@@ -437,7 +437,7 @@ fn tool_serial_grep(args: &Value, manager: &SerialManager) -> Value {
     }
 }
 
-fn tool_serial_clear(manager: &SerialManager) -> Value {
+fn tool_serial_clear<S: SerialOps>(manager: &S) -> Value {
     manager.clear_buffer();
     json!({
         "content": [{
@@ -534,6 +534,227 @@ serial_read(timeout_ms=2000)
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::SerialError;
+    use std::cell::RefCell;
+
+    /// Mock SerialOps 实现，用于测试协议层逻辑
+    struct MockSerial {
+        sent_data: RefCell<Vec<Vec<u8>>>,
+        read_data: Vec<u8>,
+        clear_count: RefCell<usize>,
+    }
+
+    impl MockSerial {
+        fn new(read_data: Vec<u8>) -> Self {
+            MockSerial {
+                sent_data: RefCell::new(vec![]),
+                read_data,
+                clear_count: RefCell::new(0),
+            }
+        }
+    }
+
+    impl SerialOps for MockSerial {
+        fn send(&self, data: &[u8]) -> Result<usize, SerialError> {
+            self.sent_data.borrow_mut().push(data.to_vec());
+            Ok(data.len())
+        }
+
+        fn drain_buffer(&self, _timeout_ms: u32) -> Vec<u8> {
+            self.read_data.clone()
+        }
+
+        fn clear_buffer(&self) {
+            *self.clear_count.borrow_mut() += 1;
+        }
+
+        fn grep_buffer(
+            &self,
+            _pattern: &str,
+            _timeout_ms: u32,
+        ) -> Result<Vec<String>, SerialError> {
+            Ok(vec![])
+        }
+
+        fn grep_buffer_bytes(
+            &self,
+            _pattern: &[u8],
+            _timeout_ms: u32,
+        ) -> Vec<(usize, Vec<u8>)> {
+            vec![]
+        }
+
+        fn status(&self) -> crate::serial_manager::SerialStatus {
+            crate::serial_manager::SerialStatus {
+                port_name: "MOCK".into(),
+                baud_rate: 9600,
+                char_size: "8".into(),
+                parity: "None".into(),
+                stop_bits: "1".into(),
+                flow_control: "None".into(),
+                is_open: true,
+            }
+        }
+    }
+
+    // ==================== 协议层测试 ====================
+
+    #[test]
+    fn parse_error_invalid_json() {
+        let mock = MockSerial::new(vec![]);
+        let resp = handle_request("not json", &mock);
+        assert_eq!(resp["error"]["code"], -32700);
+    }
+
+    #[test]
+    fn invalid_request_missing_method() {
+        let mock = MockSerial::new(vec![]);
+        let resp = handle_request(r#"{"jsonrpc":"2.0","id":1,"params":{}}"#, &mock);
+        assert_eq!(resp["error"]["code"], -32600);
+    }
+
+    #[test]
+    fn method_not_found() {
+        let mock = MockSerial::new(vec![]);
+        let resp = handle_request(
+            r#"{"jsonrpc":"2.0","id":2,"method":"foo/bar"}"#,
+            &mock,
+        );
+        assert_eq!(resp["error"]["code"], -32601);
+    }
+
+    #[test]
+    fn initialize_response() {
+        let mock = MockSerial::new(vec![]);
+        let resp = handle_request(
+            r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#,
+            &mock,
+        );
+        assert_eq!(resp["result"]["serverInfo"]["name"], "terminal-serial");
+        assert!(resp["result"]["protocolVersion"].is_string());
+    }
+
+    #[test]
+    fn tools_list_contains_all_tools() {
+        let mock = MockSerial::new(vec![]);
+        let resp = handle_request(
+            r#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#,
+            &mock,
+        );
+        let tools = resp["result"]["tools"].as_array().unwrap();
+        let names: Vec<&str> = tools.iter().map(|t| t["name"].as_str().unwrap()).collect();
+        assert!(names.contains(&"serial_send"));
+        assert!(names.contains(&"serial_read"));
+        assert!(names.contains(&"serial_status"));
+        assert!(names.contains(&"serial_grep"));
+        assert!(names.contains(&"serial_clear"));
+    }
+
+    // ==================== 工具调用测试 ====================
+
+    #[test]
+    fn serial_send_text_adds_newline() {
+        let mock = MockSerial::new(vec![]);
+        let req = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"serial_send","arguments":{"data":"AT"}}}"#;
+        let resp = handle_request(req, &mock);
+
+        assert!(!resp["result"]["isError"].as_bool().unwrap_or(false));
+        let sent = mock.sent_data.borrow();
+        assert_eq!(sent.len(), 1);
+        assert_eq!(sent[0], b"AT\r\n");
+    }
+
+    #[test]
+    fn serial_send_hex_no_newline() {
+        let mock = MockSerial::new(vec![]);
+        let req = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"serial_send","arguments":{"data":"0D0A","format":"hex"}}}"#;
+        let resp = handle_request(req, &mock);
+
+        assert!(!resp["result"]["isError"].as_bool().unwrap_or(false));
+        let sent = mock.sent_data.borrow();
+        assert_eq!(sent[0], b"\r\n");
+    }
+
+    #[test]
+    fn serial_send_no_newline_flag() {
+        let mock = MockSerial::new(vec![]);
+        let req = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"serial_send","arguments":{"data":"raw","auto_newline":false}}}"#;
+        handle_request(req, &mock);
+
+        let sent = mock.sent_data.borrow();
+        assert_eq!(sent[0], b"raw");
+    }
+
+    #[test]
+    fn serial_send_with_timeout_returns_response() {
+        let mock = MockSerial::new(b"OK\r\n".to_vec());
+        let req = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"serial_send","arguments":{"data":"AT","timeout_ms":100}}}"#;
+        let resp = handle_request(req, &mock);
+
+        let text = resp["result"]["content"][0]["text"].as_str().unwrap();
+        assert!(text.contains("Response:"));
+        assert!(text.contains("OK"));
+    }
+
+    #[test]
+    fn serial_send_missing_data_param() {
+        let mock = MockSerial::new(vec![]);
+        let req = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"serial_send","arguments":{}}}"#;
+        let resp = handle_request(req, &mock);
+        assert_eq!(resp["result"]["isError"], true);
+    }
+
+    #[test]
+    fn serial_read_returns_buffer_content() {
+        let mock = MockSerial::new(b"Hello World".to_vec());
+        let req = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"serial_read","arguments":{}}}"#;
+        let resp = handle_request(req, &mock);
+        assert_eq!(resp["result"]["content"][0]["text"].as_str().unwrap(), "Hello World");
+    }
+
+    #[test]
+    fn serial_read_hex_format() {
+        let mock = MockSerial::new(vec![0x0D, 0x0A]);
+        let req = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"serial_read","arguments":{"format":"hex"}}}"#;
+        let resp = handle_request(req, &mock);
+        assert_eq!(resp["result"]["content"][0]["text"].as_str().unwrap(), "0D0A");
+    }
+
+    #[test]
+    fn serial_status_returns_config() {
+        let mock = MockSerial::new(vec![]);
+        let req = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"serial_status","arguments":{}}}"#;
+        let resp = handle_request(req, &mock);
+        let text = resp["result"]["content"][0]["text"].as_str().unwrap();
+        assert!(text.contains("Port: MOCK"));
+        assert!(text.contains("Baud rate: 9600"));
+    }
+
+    #[test]
+    fn serial_clear_invokes_clear_buffer() {
+        let mock = MockSerial::new(vec![]);
+        let req = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"serial_clear","arguments":{}}}"#;
+        handle_request(req, &mock);
+        assert_eq!(*mock.clear_count.borrow(), 1);
+    }
+
+    #[test]
+    fn unknown_tool_returns_error() {
+        let mock = MockSerial::new(vec![]);
+        let req = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"foo","arguments":{}}}"#;
+        let resp = handle_request(req, &mock);
+        assert_eq!(resp["result"]["isError"], true);
+    }
+
+    #[test]
+    fn missing_tool_name() {
+        let mock = MockSerial::new(vec![]);
+        let req = r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"arguments":{}}}"#;
+        let resp = handle_request(req, &mock);
+        assert_eq!(resp["result"]["isError"], true);
+    }
+
+    // ==================== hex 工具测试 ====================
 
     #[test]
     fn hex_to_bytes_valid() {
