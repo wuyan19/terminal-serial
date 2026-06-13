@@ -8,14 +8,14 @@ use std::time::Duration;
 
 const MAX_BODY_SIZE: usize = 10 * 1024 * 1024; // 10MB
 
-pub struct McpServer {
+pub struct McpHttpServer {
     manager: SerialManager,
     quit: Arc<AtomicBool>,
 }
 
-impl McpServer {
+impl McpHttpServer {
     pub fn new(manager: &SerialManager) -> Self {
-        McpServer {
+        McpHttpServer {
             manager: manager.clone(),
             quit: manager.quit_flag(),
         }

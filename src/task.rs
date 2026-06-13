@@ -2,7 +2,7 @@ use crate::cmd::AppConfig;
 use crate::event_log::EventLogWriter;
 use crate::input::{Input, InputMessage};
 use crate::serial_manager::SerialManager;
-use crate::server::McpServer;
+use crate::mcp_http::McpHttpServer;
 use crate::telnet::TelnetServer;
 #[cfg(windows)]
 use encoding_rs::GBK;
@@ -42,8 +42,8 @@ impl<'a> TerminalSerial<'a> {
         );
 
         if self.config.mcp {
-            let mcp_server = McpServer::new(&manager);
-            match mcp_server.start(&self.config.mcp_host, self.config.mcp_port) {
+            let mcp_http_server = McpHttpServer::new(&manager);
+            match mcp_http_server.start(&self.config.mcp_host, self.config.mcp_port) {
                 Ok(()) => {
                     println!(
                         "MCP server listening on {}:{}",
