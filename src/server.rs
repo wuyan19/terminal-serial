@@ -3,14 +3,16 @@ use crate::serial_manager::SerialManager;
 use std::collections::VecDeque;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpListener;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
+use std::time::Duration;
 
 const MAX_BODY_SIZE: usize = 10 * 1024 * 1024; // 10MB
 
 pub struct McpServer {
     read_buffer: Arc<(Mutex<VecDeque<u8>>, Condvar)>,
     serial_port: Arc<Mutex<Box<dyn serialport::SerialPort>>>,
-    quit: Arc<Mutex<bool>>,
+    quit: Arc<AtomicBool>,
     port_name: String,
 }
 
@@ -24,12 +26,11 @@ impl McpServer {
         }
     }
 
-    pub fn start(&self, host: &str, port: u16) {
+    pub fn start(&self, host: &str, port: u16) -> Result<(), String> {
         let addr = format!("{}:{}", host, port);
-        let listener = TcpListener::bind(&addr).unwrap_or_else(|e| {
-            eprintln!("Failed to bind MCP server on {}: {}", addr, e);
-            std::process::exit(1);
-        });
+        let listener = TcpListener::bind(&addr).map_err(|e| {
+            format!("Failed to bind MCP server on {}: {}", addr, e)
+        })?;
 
         let read_buffer = Arc::clone(&self.read_buffer);
         let serial_port = Arc::clone(&self.serial_port);
@@ -39,7 +40,7 @@ impl McpServer {
         std::thread::spawn(move || {
             for stream in listener.incoming() {
                 let quit = Arc::clone(&quit);
-                if *quit.lock().unwrap() {
+                if quit.load(Ordering::Relaxed) {
                     break;
                 }
 
@@ -59,6 +60,8 @@ impl McpServer {
                 }
             }
         });
+
+        Ok(())
     }
 }
 
@@ -68,6 +71,9 @@ fn handle_connection(
     serial_port: Arc<Mutex<Box<dyn serialport::SerialPort>>>,
     port_name: String,
 ) {
+    let _ = stream.set_read_timeout(Some(Duration::from_secs(30)));
+    let _ = stream.set_write_timeout(Some(Duration::from_secs(30)));
+
     let writer = match stream.try_clone() {
         Ok(w) => w,
         Err(_) => return,

@@ -48,11 +48,9 @@ impl Getch {
 
     #[cfg(windows)]
     pub fn getch(&self) -> Result<u8, std::io::Error> {
-        loop {
-            unsafe {
-                let k = _getch();
-                return Ok(k as u8);
-            }
+        unsafe {
+            let k = _getch();
+            Ok(k as u8)
         }
     }
 

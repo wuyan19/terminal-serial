@@ -1,6 +1,7 @@
 use crate::serial_manager::SerialManager;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -25,7 +26,7 @@ const HANDSHAKE: &[u8] = &[IAC, WILL, OPT_ECHO, IAC, WILL, OPT_SUPPRESS_GA];
 pub struct TelnetServer {
     clients: Arc<Mutex<Vec<TcpStream>>>,
     serial_port: Arc<Mutex<Box<dyn serialport::SerialPort>>>,
-    quit: Arc<Mutex<bool>>,
+    quit: Arc<AtomicBool>,
 }
 
 impl TelnetServer {
@@ -37,12 +38,11 @@ impl TelnetServer {
         }
     }
 
-    pub fn start(&self, host: &str, port: u16, broadcast_rx: mpsc::Receiver<Vec<u8>>) {
+    pub fn start(&self, host: &str, port: u16, broadcast_rx: mpsc::Receiver<Vec<u8>>) -> Result<(), String> {
         let addr = format!("{}:{}", host, port);
-        let listener = TcpListener::bind(&addr).unwrap_or_else(|e| {
-            eprintln!("Failed to bind telnet server on {}: {}", addr, e);
-            std::process::exit(1);
-        });
+        let listener = TcpListener::bind(&addr).map_err(|e| {
+            format!("Failed to bind telnet server on {}: {}", addr, e)
+        })?;
         listener
             .set_nonblocking(true)
             .expect("Failed to set non-blocking");
@@ -61,7 +61,7 @@ impl TelnetServer {
                     Err(mpsc::RecvTimeoutError::Disconnected) => break,
                 }
 
-                if *quit_bc.lock().unwrap() {
+                if quit_bc.load(Ordering::Relaxed) {
                     break;
                 }
             }
@@ -79,15 +79,21 @@ impl TelnetServer {
                         let _ = stream.write_all(HANDSHAKE);
                         let _ = stream.flush();
 
+                        // 先 clone 给读取线程，再放入 clients 列表
+                        let client_stream = match stream.try_clone() {
+                            Ok(s) => s,
+                            Err(e) => {
+                                eprintln!("Telnet clone failed: {}", e);
+                                continue;
+                            }
+                        };
+
                         {
                             let mut clients = clients_acc.lock().unwrap();
                             clients.push(stream);
                         }
                         eprintln!("Telnet client connected: {}", addr);
 
-                        // 客户端读取线程：telnet 输入 → 串口
-                        let client_stream =
-                            { clients_acc.lock().unwrap().last().unwrap().try_clone().unwrap() };
                         let serial_port = Arc::clone(&serial_port_acc);
                         let quit = Arc::clone(&quit_acc);
                         thread::spawn(move || {
@@ -102,11 +108,13 @@ impl TelnetServer {
                     }
                 }
 
-                if *quit_acc.lock().unwrap() {
+                if quit_acc.load(Ordering::Relaxed) {
                     break;
                 }
             }
         });
+
+        Ok(())
     }
 }
 
@@ -114,7 +122,7 @@ impl TelnetServer {
 fn client_reader(
     mut stream: TcpStream,
     serial_port: Arc<Mutex<Box<dyn serialport::SerialPort>>>,
-    quit: Arc<Mutex<bool>>,
+    quit: Arc<AtomicBool>,
 ) {
     let mut buf = [0u8; 1024];
     loop {
@@ -141,7 +149,7 @@ fn client_reader(
             Err(_) => break,
         }
 
-        if *quit.lock().unwrap() {
+        if quit.load(Ordering::Relaxed) {
             break;
         }
     }

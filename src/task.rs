@@ -4,6 +4,7 @@ use crate::serial_manager::SerialManager;
 use crate::server::McpServer;
 use crate::telnet::TelnetServer;
 use crate::{Input, InputMessage};
+#[cfg(windows)]
 use encoding_rs::GBK;
 use std::io::{prelude::*, stdout};
 use std::sync::mpsc;
@@ -41,40 +42,54 @@ impl<'a> TerminalSerial<'a> {
         );
 
         if self.config.mcp {
-            println!(
-                "MCP server listening on {}:{}",
-                self.config.mcp_host, self.config.mcp_port
-            );
-            println!("Press 'Ctrl + K' to clear MCP read buffer.");
             let mcp_server = McpServer::new(&manager);
-            mcp_server.start(&self.config.mcp_host, self.config.mcp_port);
+            match mcp_server.start(&self.config.mcp_host, self.config.mcp_port) {
+                Ok(()) => {
+                    println!(
+                        "MCP server listening on {}:{}",
+                        self.config.mcp_host, self.config.mcp_port
+                    );
+                    println!("Press 'Ctrl + K' to clear MCP read buffer.");
+                }
+                Err(e) => {
+                    eprintln!("{}", e);
+                    return;
+                }
+            }
         }
 
         // Telnet 广播通道
         let telnet_tx = if self.config.telnet {
             let (tx, rx) = mpsc::channel::<Vec<u8>>();
             let telnet_server = TelnetServer::new(&manager);
-            telnet_server.start(&self.config.telnet_host, self.config.telnet_port, rx);
-            println!(
-                "Telnet server listening on {}:{}",
-                self.config.telnet_host, self.config.telnet_port
-            );
-            Some(tx)
+            match telnet_server.start(&self.config.telnet_host, self.config.telnet_port, rx) {
+                Ok(()) => {
+                    println!(
+                        "Telnet server listening on {}:{}",
+                        self.config.telnet_host, self.config.telnet_port
+                    );
+                    Some(tx)
+                }
+                Err(e) => {
+                    eprintln!("{}", e);
+                    return;
+                }
+            }
         } else {
             None
         };
 
         let event_log: Option<Arc<EventLogWriter>> =
-            self.config.event_log.as_ref().map(|path| {
+            self.config.event_log.as_ref().and_then(|path| {
                 match EventLogWriter::new(path) {
                     Ok(w) => {
                         println!("Event logging to: {}", path);
                         w.log_startup(manager.port_name());
-                        Arc::new(w)
+                        Some(Arc::new(w))
                     }
                     Err(e) => {
-                        println!("Failed to open event log file '{}': {}", path, e);
-                        std::process::exit(1);
+                        eprintln!("Warning: Failed to open event log file '{}': {}", path, e);
+                        None
                     }
                 }
             });
@@ -94,30 +109,30 @@ impl<'a> TerminalSerial<'a> {
             let input = Input::new();
             let mut gbk_pending: Vec<u8> = vec![];
             loop {
-                match input.get_message() {
-                    InputMessage::Quit => {
-                        let mut quit = quit1.lock().unwrap();
-                        *quit = true;
-                        break;
-                    }
-                    InputMessage::ClearBuffer => {
-                        let (lock, _) = &*read_buffer2;
-                        let mut buffer = lock.lock().unwrap();
-                        buffer.clear();
-                        drop(buffer);
-                        print!("[Buffer cleared]\r\n");
-                        let _ = stdout().flush();
-                    }
-                    InputMessage::Data(msg) => {
-                        if let Some(text) = decode_gbk_input(&msg, &mut gbk_pending) {
-                            if let Some(ref lw) = event_log_tx {
-                                lw.log_tx("local", text.as_bytes());
+                if let Some(msg) = input.get_message() {
+                    match msg {
+                        InputMessage::Quit => {
+                            quit1.store(true, std::sync::atomic::Ordering::Relaxed);
+                            break;
+                        }
+                        InputMessage::ClearBuffer => {
+                            let (lock, _) = &*read_buffer2;
+                            let mut buffer = lock.lock().unwrap();
+                            buffer.clear();
+                            drop(buffer);
+                            print!("[Buffer cleared]\r\n");
+                            let _ = stdout().flush();
+                        }
+                        InputMessage::Data(msg) => {
+                            if let Some(text) = decode_gbk_input(&msg, &mut gbk_pending) {
+                                if let Some(ref lw) = event_log_tx {
+                                    lw.log_tx("local", text.as_bytes());
+                                }
+                                let mut serial_port = serial_port1.lock().unwrap();
+                                let _ = serial_port.write_all(text.as_bytes());
                             }
-                            let mut serial_port = serial_port1.lock().unwrap();
-                            let _ = serial_port.write_all(text.as_bytes());
                         }
                     }
-                    _ => (),
                 }
             }
         }));
@@ -126,7 +141,7 @@ impl<'a> TerminalSerial<'a> {
         handles.push(thread::spawn(move || {
             let mut buf: Vec<u8> = vec![0; 2048];
             loop {
-                thread::sleep(Duration::from_millis(2));
+                thread::sleep(Duration::from_millis(10));
 
                 let data = {
                     let mut serial_port = serial_port2.lock().unwrap();
@@ -161,8 +176,7 @@ impl<'a> TerminalSerial<'a> {
                     }
                 }
 
-                let quit = quit2.lock().unwrap();
-                if *quit {
+                if quit2.load(std::sync::atomic::Ordering::Relaxed) {
                     break;
                 }
             }
@@ -178,6 +192,7 @@ impl<'a> TerminalSerial<'a> {
     }
 }
 
+#[cfg(windows)]
 fn decode_gbk_input(msg: &[u8], pending: &mut Vec<u8>) -> Option<String> {
     let (utf8_string, _, _) = GBK.decode(msg);
     if !msg.is_empty() && msg[0] >= 0x81 && msg[0] <= 0xFE {
@@ -191,4 +206,63 @@ fn decode_gbk_input(msg: &[u8], pending: &mut Vec<u8>) -> Option<String> {
     }
     pending.clear();
     Some(utf8_string.to_string())
+}
+
+#[cfg(not(windows))]
+fn decode_gbk_input(msg: &[u8], _pending: &mut Vec<u8>) -> Option<String> {
+    if msg.is_empty() {
+        return None;
+    }
+    Some(String::from_utf8_lossy(msg).to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn decode_gbk_input_ascii() {
+        let mut pending = vec![];
+        let result = decode_gbk_input(b"Hello", &mut pending);
+        assert_eq!(result.as_deref(), Some("Hello"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn decode_gbk_input_empty_returns_some() {
+        let mut pending = vec![];
+        let result = decode_gbk_input(b"", &mut pending);
+        assert_eq!(result.as_deref(), Some(""));
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn decode_gbk_input_empty_returns_none() {
+        let mut pending = vec![];
+        let result = decode_gbk_input(b"", &mut pending);
+        assert!(result.is_none());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn decode_gbk_input_chinese_two_calls() {
+        let mut pending = vec![];
+        // "中" in GBK = 0xD6 0xD0，需要逐字节处理
+        let result1 = decode_gbk_input(&[0xD6], &mut pending);
+        assert!(result1.is_none());
+        assert_eq!(pending, vec![0xD6]);
+
+        let result2 = decode_gbk_input(&[0xD0], &mut pending);
+        assert!(result2.is_some());
+        assert!(result2.unwrap().contains("中"));
+        assert!(pending.is_empty());
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn decode_gbk_input_utf8_passthrough() {
+        let mut pending = vec![];
+        let result = decode_gbk_input("你好".as_bytes(), &mut pending);
+        assert_eq!(result.as_deref(), Some("你好"));
+    }
 }

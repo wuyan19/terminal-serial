@@ -1,6 +1,7 @@
 use crate::error::SerialError;
 use std::collections::VecDeque;
 use std::io::{Read, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
@@ -20,7 +21,7 @@ pub struct SerialManager {
     port: Arc<Mutex<Box<dyn serialport::SerialPort>>>,
     port_name: String,
     read_buffer: Arc<(Mutex<VecDeque<u8>>, Condvar)>,
-    quit: Arc<Mutex<bool>>,
+    quit: Arc<AtomicBool>,
 }
 
 impl SerialManager {
@@ -33,7 +34,7 @@ impl SerialManager {
             port,
             port_name,
             read_buffer,
-            quit: Arc::new(Mutex::new(false)),
+            quit: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -64,7 +65,7 @@ impl SerialManager {
                 Mutex::new(VecDeque::with_capacity(MCP_BUFFER_MAX)),
                 Condvar::new(),
             )),
-            quit: Arc::new(Mutex::new(false)),
+            quit: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -76,7 +77,7 @@ impl SerialManager {
         Arc::clone(&self.read_buffer)
     }
 
-    pub fn quit_flag(&self) -> Arc<Mutex<bool>> {
+    pub fn quit_flag(&self) -> Arc<AtomicBool> {
         Arc::clone(&self.quit)
     }
 
@@ -259,11 +260,11 @@ impl SerialManager {
     }
 
     pub fn is_quit(&self) -> bool {
-        *self.quit.lock().unwrap()
+        self.quit.load(Ordering::Relaxed)
     }
 
     pub fn set_quit(&self) {
-        *self.quit.lock().unwrap() = true;
+        self.quit.store(true, Ordering::Relaxed);
     }
 
     pub fn port_name(&self) -> &str {

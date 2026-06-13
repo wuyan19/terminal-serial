@@ -1,3 +1,4 @@
+use crate::event_log::hex_decode;
 use crate::serial_manager::SerialManager;
 use serde_json::{json, Value};
 
@@ -184,17 +185,8 @@ fn handle_tools_list() -> Value {
 }
 
 fn hex_to_bytes(hex: &str) -> Result<Vec<u8>, String> {
-    let hex = hex.replace(" ", "").replace("0x", "").replace(",", "");
-    if hex.len() % 2 != 0 {
-        return Err("Hex string must have even length".to_string());
-    }
-    (0..hex.len())
-        .step_by(2)
-        .map(|i| {
-            u8::from_str_radix(&hex[i..i + 2], 16)
-                .map_err(|e| format!("Invalid hex at position {}: {}", i, e))
-        })
-        .collect()
+    let cleaned: String = hex.replace(" ", "").replace("0x", "").replace(",", "");
+    hex_decode(&cleaned).ok_or_else(|| "Invalid hex string".to_string())
 }
 
 fn handle_tools_call(params: &Value, manager: &SerialManager) -> Value {
@@ -538,3 +530,33 @@ serial_read(timeout_ms=2000)
 1. **不要手动添加换行**：`serial_send` 的 text 模式默认自动追加 `\r\n`，设置 `auto_newline=false` 才会发送原始数据。
 2. **serial_grep 不会阻塞数据流**：等待期间新数据正常进入缓冲区。
 3. **缓冲区 64KB 限制**：长时间运行的设备输出会覆盖旧数据，重要信息及时读取。"#;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn hex_to_bytes_valid() {
+        assert_eq!(hex_to_bytes("48656C6C6F").unwrap(), b"Hello");
+    }
+
+    #[test]
+    fn hex_to_bytes_with_spaces() {
+        assert_eq!(hex_to_bytes("48 65 6C 6C 6F").unwrap(), b"Hello");
+    }
+
+    #[test]
+    fn hex_to_bytes_with_0x_prefix() {
+        assert_eq!(hex_to_bytes("0x0D0x0A").unwrap(), b"\r\n");
+    }
+
+    #[test]
+    fn hex_to_bytes_odd_length() {
+        assert!(hex_to_bytes("ABC").is_err());
+    }
+
+    #[test]
+    fn hex_to_bytes_empty() {
+        assert_eq!(hex_to_bytes("").unwrap(), b"");
+    }
+}

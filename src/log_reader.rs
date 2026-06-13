@@ -1,5 +1,5 @@
 use crate::cmd::{LogConfig, OutputFormat};
-use crate::event_log::hex_encode;
+use crate::event_log::{hex_decode, hex_encode};
 use chrono::DateTime;
 use regex::Regex;
 use serde_json::Value;
@@ -30,19 +30,6 @@ struct SessionSummary {
     rx_bytes: usize,
     error_count: usize,
     clients: Vec<String>,
-}
-
-fn hex_decode(hex: &str) -> Option<Vec<u8>> {
-    if hex.is_empty() {
-        return Some(Vec::new());
-    }
-    if hex.len() % 2 != 0 {
-        return None;
-    }
-    (0..hex.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).ok())
-        .collect()
 }
 
 fn parse_log_event(line: &str) -> Option<LogEvent> {
@@ -383,7 +370,7 @@ pub fn run(config: &LogConfig) -> Result<(), String> {
     let output = match config.format {
         OutputFormat::Text => format_text(&filtered, config.raw),
         OutputFormat::Json => format_json(&filtered),
-        OutputFormat::Markdown => format_markdown(&filtered),
+        OutputFormat::Md => format_markdown(&filtered),
     };
 
     write_output(&output, &config.output)?;
@@ -393,4 +380,79 @@ pub fn run(config: &LogConfig) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_log_event_valid() {
+        let line = r#"{"ts":"2025-01-01T00:00:00Z","event":"startup","port":"COM3"}"#;
+        let e = parse_log_event(line).unwrap();
+        assert_eq!(e.event_type, "startup");
+        assert_eq!(e.port.as_deref(), Some("COM3"));
+    }
+
+    #[test]
+    fn parse_log_event_with_data() {
+        let line = r#"{"ts":"2025-01-01T00:00:00Z","event":"tx","source":"local","data":"48656C6C6F"}"#;
+        let e = parse_log_event(line).unwrap();
+        assert_eq!(e.event_type, "tx");
+        assert_eq!(e.data.as_deref(), Some(b"Hello".as_slice()));
+        assert_eq!(e.source.as_deref(), Some("local"));
+    }
+
+    #[test]
+    fn parse_log_event_invalid_json() {
+        assert!(parse_log_event("not json").is_none());
+    }
+
+    #[test]
+    fn parse_log_event_missing_event_field() {
+        assert!(parse_log_event(r#"{"ts":"2025-01-01T00:00:00Z"}"#).is_none());
+    }
+
+    #[test]
+    fn decode_event_text_ascii() {
+        let e = LogEvent {
+            timestamp: String::new(),
+            event_type: "tx".into(),
+            source: None,
+            data: Some(b"Hello\r\n".to_vec()),
+            message: None,
+            port: None,
+            client: None,
+            raw_json: Value::Null,
+        };
+        assert_eq!(decode_event_text(&e), "Hello");
+    }
+
+    #[test]
+    fn decode_event_text_binary() {
+        let e = LogEvent {
+            timestamp: String::new(),
+            event_type: "rx".into(),
+            source: None,
+            data: Some(vec![0xFF, 0xFE]),
+            message: None,
+            port: None,
+            client: None,
+            raw_json: Value::Null,
+        };
+        assert_eq!(decode_event_text(&e), "<binary: 2 bytes>");
+    }
+
+    #[test]
+    fn format_timestamp_rfc3339() {
+        assert_eq!(
+            format_timestamp("2025-06-13T12:34:56.789+00:00"),
+            "12:34:56.789"
+        );
+    }
+
+    #[test]
+    fn format_timestamp_fallback() {
+        assert_eq!(format_timestamp("raw-text"), "raw-text");
+    }
 }

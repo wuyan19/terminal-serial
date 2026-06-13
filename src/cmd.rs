@@ -7,10 +7,11 @@ pub enum Command {
     Log(LogConfig),
 }
 
+#[derive(clap::ValueEnum, Clone, Debug)]
 pub enum OutputFormat {
     Text,
     Json,
-    Markdown,
+    Md,
 }
 
 pub struct LogConfig {
@@ -135,9 +136,9 @@ pub struct LogArgs {
     #[arg(long)]
     pub summary: bool,
 
-    /// Output format: text (default), json, md, html
+    /// Output format
     #[arg(long, default_value = "text")]
-    pub format: String,
+    pub format: OutputFormat,
 
     /// Output file
     #[arg(short = 'o', long)]
@@ -179,11 +180,7 @@ pub fn cmd_parse() -> Command {
             source: args.source,
             grep: args.grep,
             summary: args.summary,
-            format: match args.format.as_str() {
-                "json" => OutputFormat::Json,
-                "md" => OutputFormat::Markdown,
-                _ => OutputFormat::Text,
-            },
+            format: args.format,
             output: args.output,
         });
     }

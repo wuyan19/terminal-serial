@@ -44,17 +44,17 @@ impl Keyboard {
         }
     }
 
-    fn getch(&self) -> u8 {
-        self.getch.getch().unwrap()
+    fn getch(&self) -> Option<u8> {
+        self.getch.getch().ok()
     }
 
-    pub fn get_input(&self) -> Key<KeyInfo> {
-        let first = self.getch();
+    pub fn get_input(&self) -> Option<Key<KeyInfo>> {
+        let first = self.getch()?;
 
         #[cfg(windows)]
         if first == 0xe0 || first == 0x00 {
-            let second = self.getch();
-            return self.match_windows_key(first, second);
+            let second = self.getch()?;
+            return Some(self.match_windows_key(first, second));
         }
 
         #[cfg(not(windows))]
@@ -62,10 +62,10 @@ impl Keyboard {
             return self.match_unix_escape();
         }
 
-        Key::Other(KeyInfo {
+        Some(Key::Other(KeyInfo {
             raw_value: vec![first],
             dst_value: vec![first],
-        })
+        }))
     }
 
     #[cfg(windows)]
@@ -132,39 +132,39 @@ impl Keyboard {
     }
 
     #[cfg(not(windows))]
-    fn match_unix_escape(&self) -> Key<KeyInfo> {
-        let second = self.getch();
+    fn match_unix_escape(&self) -> Option<Key<KeyInfo>> {
+        let second = self.getch()?;
 
         if second == 0x5b {
             // CSI 序列: ESC [
-            let third = self.getch();
+            let third = self.getch()?;
             match third {
-                b'A' => Key::Up(KeyInfo {
+                b'A' => Some(Key::Up(KeyInfo {
                     raw_value: vec![0x1b, 0x5b, b'A'],
                     dst_value: vec![0x1b, 0x5b, b'A'],
-                }),
-                b'B' => Key::Down(KeyInfo {
+                })),
+                b'B' => Some(Key::Down(KeyInfo {
                     raw_value: vec![0x1b, 0x5b, b'B'],
                     dst_value: vec![0x1b, 0x5b, b'B'],
-                }),
-                b'C' => Key::Right(KeyInfo {
+                })),
+                b'C' => Some(Key::Right(KeyInfo {
                     raw_value: vec![0x1b, 0x5b, b'C'],
                     dst_value: vec![0x1b, 0x5b, b'C'],
-                }),
-                b'D' => Key::Left(KeyInfo {
+                })),
+                b'D' => Some(Key::Left(KeyInfo {
                     raw_value: vec![0x1b, 0x5b, b'D'],
                     dst_value: vec![0x1b, 0x5b, b'D'],
-                }),
-                b'H' => Key::Home(KeyInfo {
+                })),
+                b'H' => Some(Key::Home(KeyInfo {
                     raw_value: vec![0x1b, 0x5b, b'H'],
                     dst_value: vec![0x1b, 0x5b, b'H'],
-                }),
-                b'F' => Key::End(KeyInfo {
+                })),
+                b'F' => Some(Key::End(KeyInfo {
                     raw_value: vec![0x1b, 0x5b, b'F'],
                     dst_value: vec![0x1b, 0x5b, b'F'],
-                }),
+                })),
                 b'1' => {
-                    let fourth = self.getch();
+                    let fourth = self.getch()?;
                     match fourth {
                         b'5' => self.expect_terminator_and_key(
                             &[0x1b, 0x5b, b'1', b'5'],
@@ -182,19 +182,19 @@ impl Keyboard {
                             &[0x1b, 0x5b, b'1', b'9'],
                             Key::F8,
                         ),
-                        _ => Key::Other(KeyInfo {
+                        _ => Some(Key::Other(KeyInfo {
                             raw_value: vec![0x1b, 0x5b, b'1', fourth],
                             dst_value: vec![0x1b, 0x5b, b'1', fourth],
-                        }),
+                        })),
                     }
                 }
                 b'2' => {
-                    let fourth = self.getch();
+                    let fourth = self.getch()?;
                     match fourth {
-                        b'~' => Key::Insert(KeyInfo {
+                        b'~' => Some(Key::Insert(KeyInfo {
                             raw_value: vec![0x1b, 0x5b, b'2', b'~'],
                             dst_value: vec![0x1b, 0x5b, b'2', b'~'],
-                        }),
+                        })),
                         b'0' => self.expect_terminator_and_key(
                             &[0x1b, 0x5b, b'2', b'0'],
                             Key::F9,
@@ -211,15 +211,15 @@ impl Keyboard {
                             &[0x1b, 0x5b, b'2', b'4'],
                             Key::F12,
                         ),
-                        _ => Key::Other(KeyInfo {
+                        _ => Some(Key::Other(KeyInfo {
                             raw_value: vec![0x1b, 0x5b, b'2', fourth],
                             dst_value: vec![0x1b, 0x5b, b'2', fourth],
-                        }),
+                        })),
                     }
                 }
                 b'3' => {
-                    let fourth = self.getch();
-                    if fourth == b'~' {
+                    let fourth = self.getch()?;
+                    Some(if fourth == b'~' {
                         Key::Delete(KeyInfo {
                             raw_value: vec![0x1b, 0x5b, b'3', b'~'],
                             dst_value: vec![0x1b, 0x5b, b'3', b'~'],
@@ -229,11 +229,11 @@ impl Keyboard {
                             raw_value: vec![0x1b, 0x5b, b'3', fourth],
                             dst_value: vec![0x1b, 0x5b, b'3', fourth],
                         })
-                    }
+                    })
                 }
                 b'5' => {
-                    let fourth = self.getch();
-                    if fourth == b'~' {
+                    let fourth = self.getch()?;
+                    Some(if fourth == b'~' {
                         Key::PageUp(KeyInfo {
                             raw_value: vec![0x1b, 0x5b, b'5', b'~'],
                             dst_value: vec![0x1b, 0x5b, b'5', b'~'],
@@ -243,11 +243,11 @@ impl Keyboard {
                             raw_value: vec![0x1b, 0x5b, b'5', fourth],
                             dst_value: vec![0x1b, 0x5b, b'5', fourth],
                         })
-                    }
+                    })
                 }
                 b'6' => {
-                    let fourth = self.getch();
-                    if fourth == b'~' {
+                    let fourth = self.getch()?;
+                    Some(if fourth == b'~' {
                         Key::PageDown(KeyInfo {
                             raw_value: vec![0x1b, 0x5b, b'6', b'~'],
                             dst_value: vec![0x1b, 0x5b, b'6', b'~'],
@@ -257,17 +257,17 @@ impl Keyboard {
                             raw_value: vec![0x1b, 0x5b, b'6', fourth],
                             dst_value: vec![0x1b, 0x5b, b'6', fourth],
                         })
-                    }
+                    })
                 }
-                _ => Key::Other(KeyInfo {
+                _ => Some(Key::Other(KeyInfo {
                     raw_value: vec![0x1b, 0x5b, third],
                     dst_value: vec![0x1b, 0x5b, third],
-                }),
+                })),
             }
         } else if second == 0x4f {
             // SS3 序列: ESC O
-            let third = self.getch();
-            match third {
+            let third = self.getch()?;
+            Some(match third {
                 b'P' => Key::F1(KeyInfo { raw_value: vec![0x1b, 0x4f, b'P'], dst_value: vec![] }),
                 b'Q' => Key::F2(KeyInfo { raw_value: vec![0x1b, 0x4f, b'Q'], dst_value: vec![] }),
                 b'R' => Key::F3(KeyInfo { raw_value: vec![0x1b, 0x4f, b'R'], dst_value: vec![] }),
@@ -276,12 +276,12 @@ impl Keyboard {
                     raw_value: vec![0x1b, 0x4f, third],
                     dst_value: vec![0x1b, 0x4f, third],
                 }),
-            }
+            })
         } else {
-            Key::Other(KeyInfo {
+            Some(Key::Other(KeyInfo {
                 raw_value: vec![0x1b, second],
                 dst_value: vec![0x1b, second],
-            })
+            }))
         }
     }
 
@@ -291,17 +291,17 @@ impl Keyboard {
         &self,
         prefix: &[u8],
         key_fn: fn(KeyInfo) -> Key<KeyInfo>,
-    ) -> Key<KeyInfo> {
-        let terminator = self.getch();
+    ) -> Option<Key<KeyInfo>> {
+        let terminator = self.getch()?;
         let mut raw = prefix.to_vec();
         raw.push(terminator);
-        if terminator == b'~' {
+        Some(if terminator == b'~' {
             key_fn(KeyInfo { raw_value: raw, dst_value: vec![] })
         } else {
             Key::Other(KeyInfo {
                 raw_value: raw.clone(),
                 dst_value: raw,
             })
-        }
+        })
     }
 }

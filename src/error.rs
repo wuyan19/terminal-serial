@@ -12,12 +12,6 @@ pub enum SerialError {
     #[error("Read error: {0}")]
     Read(#[source] std::io::Error),
 
-    #[error("Buffer error: {0}")]
-    Buffer(String),
-
-    #[error("Invalid input: {0}")]
-    InvalidInput(String),
-
     #[error("Regex error: {0}")]
     Regex(#[from] regex::Error),
 }

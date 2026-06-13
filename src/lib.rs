@@ -20,7 +20,6 @@ pub enum InputMessage {
     Quit,
     Data(Vec<u8>),
     ClearBuffer,
-    None,
 }
 
 pub struct Input {
@@ -34,22 +33,22 @@ impl Input {
         }
     }
 
-    pub fn get_message(&self) -> InputMessage {
-        let input = self.keyboard.get_input();
+    pub fn get_message(&self) -> Option<InputMessage> {
+        let input = self.keyboard.get_input()?;
         match input {
             Key::Other(x) => {
                 if x.raw_value.len() == 1 && x.raw_value[0] == CTRL_RIGHT_BRACKET {
-                    InputMessage::Quit
+                    Some(InputMessage::Quit)
                 } else if x.raw_value.len() == 1 && x.raw_value[0] == CTRL_K {
-                    InputMessage::ClearBuffer
+                    Some(InputMessage::ClearBuffer)
                 } else {
-                    InputMessage::Data(x.dst_value)
+                    Some(InputMessage::Data(x.dst_value))
                 }
             }
             Key::Up(x) | Key::Down(x) | Key::Right(x) | Key::Left(x)
             | Key::Insert(x) | Key::Delete(x) | Key::Home(x) | Key::End(x)
-            | Key::PageUp(x) | Key::PageDown(x) => InputMessage::Data(x.dst_value),
-            _ => InputMessage::None,
+            | Key::PageUp(x) | Key::PageDown(x) => Some(InputMessage::Data(x.dst_value)),
+            _ => None,
         }
     }
 }
