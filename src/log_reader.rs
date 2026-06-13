@@ -1,5 +1,5 @@
 use crate::cmd::{LogConfig, OutputFormat};
-use crate::event_log::{hex_decode, hex_encode};
+use crate::util::{hex_decode, hex_encode};
 use chrono::DateTime;
 use regex::Regex;
 use serde_json::Value;

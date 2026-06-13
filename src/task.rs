@@ -1,9 +1,9 @@
 use crate::cmd::AppConfig;
 use crate::event_log::EventLogWriter;
+use crate::input::{Input, InputMessage};
 use crate::serial_manager::SerialManager;
 use crate::server::McpServer;
 use crate::telnet::TelnetServer;
-use crate::{Input, InputMessage};
 #[cfg(windows)]
 use encoding_rs::GBK;
 use std::io::{prelude::*, stdout};

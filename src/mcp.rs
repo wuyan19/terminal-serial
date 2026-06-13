@@ -1,5 +1,5 @@
-use crate::event_log::hex_decode;
 use crate::serial_manager::SerialManager;
+use crate::util::hex_decode;
 use serde_json::{json, Value};
 
 const PROTOCOL_VERSION: &str = "2024-11-05";
